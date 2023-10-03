@@ -1,11 +1,10 @@
-function [trajStruct] = getTrajStruct20220419(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,varargin)
+function [trajStruct] = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,varargin)
 
 % This function takes in the Data struct, the desired trajectories, and the 
 % condition labels, and returns trajStruct, which contains all trajectories 
 % for each condition and condition-averaged trajectories 
 
 %% Variable arguments
-    matchConditions = false;
     getTrialAverages = false;
     zScoreParams = [];
     rmSort = [];
@@ -33,9 +32,6 @@ function [trajStruct] = getTrajStruct20220419(Data,condFields,trajFields,trialIn
     for trajField = 1:numTrajFields
          trajFieldName = trajFields{trajField};
          upperTrajFieldName = [upper(trajFieldName(1)),trajFieldName(2:end)];
-         if strcmp(trajFieldName,'zSmoothFR')
-             upperTrajFieldName = upperTrajFieldName(2:end);
-         end
          trajStruct.(['all',upperTrajFieldName]) = [];
          trajStruct.(['avg',upperTrajFieldName]) = [];
     end
@@ -60,11 +56,8 @@ function [trajStruct] = getTrajStruct20220419(Data,condFields,trajFields,trialIn
             %trial
             for trajField = 1:numTrajFields
                trajFieldName = trajFields{trajField};
-               [traj,timestamps] = getStatesTraj20220419(tempData(trial),trialInclStates,trajFieldName,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'rmSort',rmSort);
+               [traj,timestamps] = getStatesTraj(tempData(trial),trialInclStates,trajFieldName,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'rmSort',rmSort);
                upperTrajFieldName = [upper(trajFieldName(1)),trajFieldName(2:end)];
-               if strcmp(trajFieldName,'zSmoothFR')
-                    upperTrajFieldName = upperTrajFieldName(2:end);
-               end
                trajStruct(structInd).(['all',upperTrajFieldName])(trial).trialNum = tempData(trial).trialNum;
                trajStruct(structInd).(['all',upperTrajFieldName])(trial).traj = traj;
                trajStruct(structInd).(['all',upperTrajFieldName])(trial).timestamps = timestamps;
@@ -73,53 +66,14 @@ function [trajStruct] = getTrajStruct20220419(Data,condFields,trajFields,trialIn
         %Update structInd
         structInd = structInd + 1;
     end
-    
-    %Find minNumCondTrials=N, keep shortest N trials for each condition
-    if matchConditions
-        %Find minNumCondTrials = N, using first trajField
-        numCondTrials = nan(1,numCond);
-        trajField = 1;
-        trajFieldName = trajFields{trajField};
-        upperTrajFieldName = [upper(trajFieldName(1)),trajFieldName(2:end)];
-        if strcmp(trajFieldName,'zSmoothFR')
-             upperTrajFieldName = upperTrajFieldName(2:end);
-        end
-        for condInd = 1:numCond
-            numCondTrials(condInd) = size(trajStruct(condInd).(['all',upperTrajFieldName]),2);
-        end
-        minNumCondTrials = min(numCondTrials);
-        %Keep shortest N trials for each condition, using first trajField
-        for condInd = 1:numCond
-            if numCondTrials(condInd)>minNumCondTrials
-               for trajField = 1:numTrajFields
-                   trajLengths = nan(1,numCondTrials(condInd));
-                   trajFieldName = trajFields{trajField};
-                   upperTrajFieldName = [upper(trajFieldName(1)),trajFieldName(2:end)];
-                   if strcmp(trajFieldName,'zSmoothFR')
-                        upperTrajFieldName = upperTrajFieldName(2:end);
-                   end
-                   for trial = 1:numCondTrials(condInd)
-                      trajLengths(trial) = size(trajStruct(condInd).(['all',upperTrajFieldName])(trial).timestamps,2);
-                   end
-                   [~,sortInd] = sort(trajLengths);
-                   trajStruct(condInd).(['all',upperTrajFieldName]) = trajStruct(condInd).(['all',upperTrajFieldName])(sortInd(1:minNumCondTrials));
-               end
-            end
-        end
-    end
-        
+      
     %Take condition averages, store
     structInd = 1;
     for condInd = 1:numCond
-        condInd
         for trajField = 1:numTrajFields
             trajFieldName = trajFields{trajField};
             upperTrajFieldName = [upper(trajFieldName(1)),trajFieldName(2:end)];
-            if strcmp(trajFieldName,'zSmoothFR')
-                upperTrajFieldName = upperTrajFieldName(2:end);
-            end
-            [avgTraj,timestamps,CI95] = getAvgTraj20211210(trajStruct(structInd).(['all',upperTrajFieldName]),binWidth);
-            %Save timestamps and average trajectory
+            [avgTraj,timestamps,CI95] = getAvgTraj(trajStruct(structInd).(['all',upperTrajFieldName]),binWidth);
             trajStruct(structInd).(['avg',upperTrajFieldName]).traj = avgTraj;
             trajStruct(structInd).(['avg',upperTrajFieldName]).timestamps = timestamps;
             trajStruct(structInd).(['avg',upperTrajFieldName]).CI95 = CI95;

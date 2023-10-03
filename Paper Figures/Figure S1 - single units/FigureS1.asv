@@ -15,8 +15,8 @@ clear; clc; clf; close all
 %% Setup colormaps    
     [pcmap,tcmap,rainbow] = getColorMaps();
     pcmap = vertcat(pcmap,rainbow(4:5,:));
-    scmap = rainbow;
-    anovaCmap = rainbow([3,4,5,6],:);
+    scmap = customRainbow;
+    anovaCmap = customRainbow([3,4,5,6],:);
     
 %% Set parameters
     sigThreshold = 0.10;
@@ -32,7 +32,7 @@ clear; clc; clf; close all
         [Data,zScoreParams] = loadData(dataset);
         %Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
-        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);
+        trajStruct = getTrajStruct20220419(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'matchConditions',false,'zScoreParams',zScoreParams);
       
         % Get number of trials for each condition, numTimestamps in each trial
         numCondTraj = [];

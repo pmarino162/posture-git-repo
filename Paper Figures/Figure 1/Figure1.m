@@ -5,9 +5,8 @@ clear; clc; clf; close all;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 1';
     set(0, 'DefaultFigureRenderer', 'painters');
     
-%% Setup colormap    
-    load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\orli.mat')
-    pcmap = orli;
+%% Setup colormaps 
+    [pcmap,tcmap,rainbow] = getColorMaps();
     posture2color = [5,1];
     
 %%  Create base trajectory

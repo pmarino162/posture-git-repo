@@ -1,4 +1,4 @@
-function [avgTraj,timestamps,CI95] = getAvgTraj20211210(trajStruct,binWidth)
+function [avgTraj,timestamps,CI95] = getAvgTraj(trajStruct,binWidth)
 
 %% Preallocate avgTraj and timestamps
     numCondTrials = size(trajStruct,2);
