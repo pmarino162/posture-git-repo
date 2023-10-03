@@ -82,16 +82,24 @@ function [trajStruct] = getTrajStruct(Data,condFields,trajFields,trialInclStates
         structInd = structInd + 1;
     end
 
-    %Get trial averages, store
+    %Get individual trial averages (across timesteps), store
     if getTrialAverages
         for i = 1:size(trajStruct,2)
-            %Individual trials
-            for j = 1:size(trajStruct(i).allSmoothFR,2)
-               trajStruct(i).allSmoothFR(j).trialAvg = mean(trajStruct(i).allSmoothFR(j).traj); 
+            %SmoothFR
+            if isfield(trajStruct,'allSmoothFR')
+                for j = 1:size(trajStruct(i).allSmoothFR,2)
+                   trajStruct(i).allSmoothFR(j).trialAvg = mean(trajStruct(i).allSmoothFR(j).traj); 
+                end
+            end         
+            %ZSmoothFR
+            if isfield(trajStruct,'allZSmoothFR')
+                for j = 1:size(trajStruct(i).allZSmoothFR,2)
+                   trajStruct(i).allZSmoothFR(j).trialAvg = mean(trajStruct(i).allZSmoothFR(j).traj); 
+                end
             end
-            %Condition average
-            trajStruct(i).avgSmoothFR.condAvg = mean(trajStruct(i).avgSmoothFR.traj);
         end
     end
+    
+    
     
 end

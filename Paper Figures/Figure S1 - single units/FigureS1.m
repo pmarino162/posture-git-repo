@@ -32,7 +32,7 @@ clear; clc; clf; close all
         [Data,zScoreParams] = loadData(dataset);
         %Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
-        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);
+        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);
       
         % Get number of trials for each condition, numTimestamps in each trial
         numCondTraj = [];
@@ -58,14 +58,6 @@ clear; clc; clf; close all
         end
         trajStruct = trajStruct(ismember([trajStruct.posture],keepPosture));
         
-        %Get 1 observation per trial
-        for i = 1:size(trajStruct,2)
-            %Individual trials
-            for j = 1:size(trajStruct(i).allSmoothFR,2)
-               trajStruct(i).allSmoothFR(j).trialAvg = mean(trajStruct(i).allSmoothFR(j).traj); 
-            end
-        end
-               
         
         %Get minimum number of trials and timestamps
         numCondTraj = [];
