@@ -2,14 +2,12 @@ clear; clc; clf; close all;
 
 %% Setup saveFig   
     saveFig = false;
-    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Dissertation\Defense Presentation\Figures\Posture Hypotheses';
+    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 1';
     set(0, 'DefaultFigureRenderer', 'painters');
     
 %% Setup colormap    
     load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\orli.mat')
     pcmap = orli;
-    load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\customRainbow.mat')
-    tcmap = customRainbow;
     posture2color = [5,1];
     
 %%  Create base trajectory
@@ -47,7 +45,6 @@ clear; clc; clf; close all;
         end
     end
     
-
     
 %% Plot Trajectories
 fs = 14; %Font size
@@ -56,8 +53,6 @@ as = 10; %Arrow Size
 lw = 3.5; %LineWidth
 az = 121.9112; el = 23.2414;
 
-
-%Organized
 figure; hold on;
 xDim = 3; yDim = 2; zDim = 1;
 for posture = [1,2]
@@ -72,7 +67,7 @@ for posture = [1,2]
         plot3(traj(end,xDim),traj(end,yDim),traj(end,zDim),'v','MarkerEdgeColor',pcmap(posture2color(posture),:),'MarkerFaceColor',pcmap(posture2color(posture),:),'MarkerSize',as);
     end
 end
-xlabel('Neural Dim 1'); ylabel('Neural Dim 2'); zlabel('Neural Dim 3')
+%xlabel('Neural Dim 1'); ylabel('Neural Dim 2'); zlabel('Neural Dim 3')
 xticklabels({}); yticklabels({}); zticklabels({});
 ax = gca;
 
