@@ -30,65 +30,35 @@ clear; clc; clf; close all
         %Load data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
+        
         %Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);
       
-        % Get number of trials for each condition, numTimestamps in each trial
-        numCondTraj = [];
-        for i = 1:size(trajStruct,2)
-           numTraj = size(trajStruct(i).allSmoothFR,2);
-           numCondTraj = [numCondTraj,numTraj];
-        end        
-        figure
-            histogram(numCondTraj)
-            xlabel('Number of trials')
-            ylabel('Number of conditions')
-
         %Keep only postures with all targets
-        postureList = unique([trajStruct.posture]);
-        targetList = unique([trajStruct.target]); 
-        keepPosture = [];
-        for posture = postureList
-            tempTrajStruct = trajStruct([trajStruct.posture]==posture);
-            postureTargetList = [tempTrajStruct.target];
-            if isequal(postureTargetList,targetList)
-                keepPosture = [posture,keepPosture];
-            end
-        end
-        trajStruct = trajStruct(ismember([trajStruct.posture],keepPosture));
+        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);
+        [trajStruct] = keepOnlyPosturesWithAllTargets(trajStruct,postureList,targetList);
         
+        %Get new posture and target lists
+        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);
         
         %Get minimum number of trials and timestamps
-        numCondTraj = [];
-        for i = 1:size(trajStruct,2)
-           numTraj = size(trajStruct(i).allSmoothFR,2);
-           numCondTraj = [numCondTraj,numTraj];
-        end
-        [minNumTrials,i] = min(numCondTraj);
-
-        %Get posture and target lists
-        postureList = unique([trajStruct.posture]);
-        numPostures = size(postureList,2);
-        targetList = unique([trajStruct.target]); 
-        numTargets = size(targetList,2);
-        numChannels = size(trajStruct(1).avgSmoothFR.traj,2);
-        numConditions = size(trajStruct,2);
+        [minNumCondTrials] = getMinNumCondTrials(trajStruct); 
 
 %% ANOVA and Pie Plot
         %Format Data for Anova
-        dataTable = NaN(minNumTrials*numPostures,numTargets,numChannels);
+        dataTable = NaN(minNumCondTrials*numPostures,numTargets,numChannels);
         postureInd = 1;
         tableInd = 1;
         for posture = postureList
             targetInd = 1;
             for target = targetList
-                allSmoothFR = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allSmoothFR;
-                trialAvg = vertcat(allSmoothFR.trialAvg);
-                dataTable(tableInd:tableInd+minNumTrials-1,targetInd,:) = datasample(trialAvg,minNumTrials,1,'Replace',false);
+                allZSmoothFR = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allZSmoothFR;
+                trialAvg = vertcat(allZSmoothFR.trialAvg);
+                dataTable(tableInd:tableInd+minNumCondTrials-1,targetInd,:) = datasample(trialAvg,minNumCondTrials,1,'Replace',false);
                 targetInd = targetInd + 1;
             end
-            tableInd = tableInd + minNumTrials;
+            tableInd = tableInd + minNumCondTrials;
             postureInd = postureInd + 1;
         end
         
@@ -98,7 +68,7 @@ clear; clc; clf; close all
         for channel = 1:numChannels
             resultStruct(structInd).channel = channel;
             resultStruct(structInd).dataTable = dataTable(:,:,channel);
-            [p,tbl,stats] = anova2(resultStruct(structInd).dataTable,minNumTrials,'off');
+            [p,tbl,stats] = anova2(resultStruct(structInd).dataTable,minNumCondTrials,'off');
             resultStruct(structInd).p = p;
             resultStruct(structInd).tbl = tbl;
             resultStruct(structInd).stats = stats;
@@ -165,8 +135,8 @@ clear; clc; clf; close all
             for target = targetList
                 if  any([tempTrajStruct.target]==target)
                     targetData = tempTrajStruct([tempTrajStruct.target]==target);
-                    for trial = 1:numel(targetData.allSmoothFR)
-                        trialFR = mean(targetData.allSmoothFR(trial).traj);
+                    for trial = 1:numel(targetData.allZSmoothFR)
+                        trialFR = mean(targetData.allZSmoothFR(trial).traj);
                         for channel = 1:numCh
                             tuningData(channel).allData(trial,targetInd) = trialFR(channel);
                         end
@@ -211,16 +181,16 @@ clear; clc; clf; close all
        for posture = postureList
            %Get repeated samples
            targetInd = 1;
-           samples = NaN(minNumTrials,numTargets);
+           samples = NaN(minNumCondTrials,numTargets);
            for target = targetList
-                allSmoothFR = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allSmoothFR;
-                trialAvg = vertcat(allSmoothFR.trialAvg);
-                samples(:,targetInd) =  datasample(trialAvg(:,channel),minNumTrials,1,'Replace',false);
+                allZSmoothFR = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allZSmoothFR;
+                trialAvg = vertcat(allZSmoothFR.trialAvg);
+                samples(:,targetInd) =  datasample(trialAvg(:,channel),minNumCondTrials,1,'Replace',false);
                 targetInd = targetInd + 1;
            end
            %For each sample, get PDDist
-           PDDist = NaN(1,minNumTrials);
-           for i = 1:minNumTrials
+           PDDist = NaN(1,minNumCondTrials);
+           for i = 1:minNumCondTrials
                 y = nan(numTargets,1); x = nan(numTargets,3);
                 for targetInd = 1:numTargets
                     y(targetInd,1) = samples(i,targetInd);
