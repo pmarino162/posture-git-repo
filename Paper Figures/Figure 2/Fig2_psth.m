@@ -6,11 +6,7 @@ clear; clc; clf; close all
     set(0, 'DefaultFigureRenderer', 'painters');
     
 %% Setup colormap    
-    load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\orli.mat')
-    %load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\customRainbow.mat')
-    load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\purpleAndGreen2.mat')
-    pcmap = orli;
-    tcmap = purpleAndGreen;
+    [pcmap,tcmap,rainbow] = getColorMaps();
     
 %% Get trajStruct
     %Load data
@@ -28,7 +24,7 @@ clear; clc; clf; close all
     
     %Execution
     trialInclStates(1).inclStates = {{'state','Step 1','first',-50},{'state','Step 2','first',250}};
-    exTrajStruct = getTrajStruct20220419(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'matchConditions',false,'zScoreParams',zScoreParams);
+    exTrajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'matchConditions',false,'zScoreParams',zScoreParams);
     
 
 %% Get numPts
@@ -130,6 +126,9 @@ clear; clc; clf; close all
     prettiest = [3,34,41,42,43,82];
     
     dimList = [3,34,49];
+    
+    dimList = [3,34,65];
+    
     f = figure; fs = 14;
      f.Position = [100,-200,518,950];
     postureInd = 1;
