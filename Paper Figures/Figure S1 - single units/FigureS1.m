@@ -21,8 +21,12 @@ clear; clc; clf; close all
 %% Set parameters
     sigThreshold = 0.10;
     alpha = 0.05; %For 2-way ANOVA
-    fs = 14;
     
+    binWidth = 200;
+    kernelStdDev = 200;
+    trajFields = {'smoothFR'};
+    
+    fs = 14;
 %% Main loop
     %TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
     TCDatasetList = {'E20200316'};
@@ -31,21 +35,15 @@ clear; clc; clf; close all
         %% Get trajStruct
         %Load data
         dataset = datasetList{1,1};
-        [Data,zScoreParams] = loadData(dataset);    
-        
+        [Data,zScoreParams] = loadData(dataset);           
         %Get trajStruct
-        [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
-        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);
-      
+        [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset,'binWidth',binWidth,'kernelStdDev',kernelStdDev,'trajFields',trajFields);
+        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);      
         %Keep only postures with all targets
         [postureList,~,targetList,~,~,~] = getTrajStructDimensions(trajStruct);
         [trajStruct] = keepOnlyPosturesWithAllTargets(trajStruct,postureList,targetList);
-        
-        %Get new posture and target lists
-        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);
-        
-        %Get minimum number of trials and timestamps
-        %[minNumCondTrials] = getMinNumCondTrials(trajStruct); 
+        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);      
+        %Get number of trials 
         [numTrials] = getTotalNumTrials(trajStruct);
         
         %% ANOVA and Pie Plot
@@ -76,38 +74,7 @@ clear; clc; clf; close all
             resultStruct(structInd).stats = stats;
             structInd = structInd + 1;
         end
-        
-        
-%         
-%         %Format Data for Anova
-%         dataTable = NaN(minNumCondTrials*numPostures,numTargets,numChannels);
-%         postureInd = 1;
-%         tableInd = 1;
-%         for posture = postureList
-%             targetInd = 1;
-%             for target = targetList
-%                 allZSmoothFR = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allZSmoothFR;
-%                 trialAvg = vertcat(allZSmoothFR.trialAvg);
-%                 dataTable(tableInd:tableInd+minNumCondTrials-1,targetInd,:) = datasample(trialAvg,minNumCondTrials,1,'Replace',false);
-%                 targetInd = targetInd + 1;
-%             end
-%             tableInd = tableInd + minNumCondTrials;
-%             postureInd = postureInd + 1;
-%         end
-%         
-%         %Perform Anova 
-%         resultStruct = struct('channel',[],'dataTable',[],'p',[],'tbl',[],'stats',[]);
-%         structInd = 1;
-%         for channel = 1:numChannels
-%             resultStruct(structInd).channel = channel;
-%             resultStruct(structInd).dataTable = dataTable(:,:,channel);
-%             [p,tbl,stats] = anova2(resultStruct(structInd).dataTable,minNumCondTrials,'off');
-%             resultStruct(structInd).p = p;
-%             resultStruct(structInd).tbl = tbl;
-%             resultStruct(structInd).stats = stats;
-%             structInd = structInd + 1;
-%         end
-        
+                
         %Plot Pie Chart
         %'tuning' variable: 0 = neither; 1 = target only; 2 = posture only; 3 = both;
         numTarget = 0; numPosture = 0; numBoth = 0; numNeither = 0;
@@ -146,13 +113,11 @@ clear; clc; clf; close all
         for i = 1:size(pText,1)
             pText(i).String = combinedtxt(i);
         end        
-        %title(dataset);
-        %set(gca,'fontname','arial'); set(gca,'fontsize',fs)
         if saveFig
             saveas(gcf,fullfile(saveDir,dataset,'anovaPieChart.svg'));
         end
 
-%% Get tuningData
+        %% Get tuningData
         %Get tuning data for each posture
         postureTuningData = struct('posture',[],'tuningData',[]);
         structInd = 1;
