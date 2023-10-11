@@ -1,10 +1,12 @@
 % Gets parameters for trajStruct function used in most analyses of posture paper
 
-function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset)
+function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset,varargin)
 
         binWidth = 25;
         kernelStdDev = 25;
         trajFields = {'zSmoothFR'};
+        assignopts(who,varargin);
+        
         trialInclStates = struct('trialName','','inclStates',[]);
         
         switch dataset
