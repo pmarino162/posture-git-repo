@@ -1,6 +1,6 @@
 % Gets parameters for trajStruct function used in most analyses of posture paper
 
-function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset,varargin)
+function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset,varag)
 
         binWidth = 25;
         kernelStdDev = 25;
