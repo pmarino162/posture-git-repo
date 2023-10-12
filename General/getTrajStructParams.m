@@ -8,6 +8,7 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
         assignopts(who,varargin);
         
         trialInclStates = struct('trialName','','inclStates',[]);
+        assignopts(who,varargin);
         
         switch dataset
             %BCI

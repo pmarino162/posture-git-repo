@@ -1,12 +1,5 @@
 clear; clc; clf; close all
 
-%%% CHANGES TO MAKE PER STEVE MEETING %%%%%%%%%%%%%%%%%%%%
-%%% - MAKE SURE CHANGE IN PD IS SIGNED
-%%% - FOR EACH COMPARISON, BOOTSTRAP ESTIMATE OF TUNING CURVES, GET CHANGE IN PD
-%%% - THAT GIVES YOU 10000 (SIGNED) CHANGE IN PD ESTIMATES
-%%% - ASSESS WHETHER THAT DISTRIBUTION IS SIGNIFICANTLY DIFFERENT FROM ZERO
-%%%   (USING T STATISTIC)
-
 %% Setup saveFig   
     saveFig = false;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S1 - single units';
@@ -15,86 +8,89 @@ clear; clc; clf; close all
 %% Setup colormaps    
     [pcmap,tcmap,rainbow] = getColorMaps();
     pcmap = vertcat(pcmap,rainbow(4:5,:));
-    scmap = rainbow;
     anovaCmap = rainbow([3,4,5,6],:);
     
 %% Set parameters
-    sigThreshold = 0.10;
-    fs = 14;
+    refPosture = 1; %Use posture 1 for all task x animals
+    alpha = 0.05; %For 2-way ANOVA
+    numBootReps = 10000; %Number of bootstrap resamples when assessing significance of delPD
+    trajFields = {'smoothFR'}; %Don't z-score FRs
+    dataType = 'smoothFR';
     
-%% Get trajStruct
+%% Main loop
     %TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
-    TCDatasetList = {'E20200316'};
+    TCDatasetList = {'N20190226'};
     
-    for datasetList = TCDatasetList
+    for datasetList = TCDatasetList        
+        %% Get trajStruct
         %Load data
         dataset = datasetList{1,1};
-        [Data,zScoreParams] = loadData(dataset);
-        
+        [Data,zScoreParams] = loadData(dataset);           
         %Get trajStruct
-        [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
-        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);
-      
+        [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset,'trajFields',trajFields);
+        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);      
         %Keep only postures with all targets
-        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);
+        [postureList,~,targetList,~,~,~] = getTrajStructDimensions(trajStruct,'dataType',dataType);
         [trajStruct] = keepOnlyPosturesWithAllTargets(trajStruct,postureList,targetList);
+        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct,'dataType',dataType);      
+        %Get number of trials 
+        [numTrials] = getTotalNumTrials(trajStruct,'dataType',dataType);
         
-        %Get new posture and target lists
-        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);
-        
-        %Get minimum number of trials and timestamps
-        [minNumCondTrials] = getMinNumCondTrials(trajStruct); 
-
-%% ANOVA and Pie Plot
-        %Format Data for Anova
-        dataTable = NaN(minNumCondTrials*numPostures,numTargets,numChannels);
-        postureInd = 1;
-        tableInd = 1;
-        for posture = postureList
-            targetInd = 1;
-            for target = targetList
-                allZSmoothFR = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allZSmoothFR;
-                trialAvg = vertcat(allZSmoothFR.trialAvg);
-                dataTable(tableInd:tableInd+minNumCondTrials-1,targetInd,:) = datasample(trialAvg,minNumCondTrials,1,'Replace',false);
-                targetInd = targetInd + 1;
-            end
-            tableInd = tableInd + minNumCondTrials;
-            postureInd = postureInd + 1;
+        %% ANOVA and Pie Plot
+        %Format data for anova
+        gT = zeros(1,numTrials); %grouping variables
+        gP = zeros(1,numTrials);
+        FR = zeros(numTrials,numChannels);
+        trialInd = 1;
+        for i = 1:size(trajStruct,2)
+           target = trajStruct(i).target;
+           posture = trajStruct(i).posture;
+           numCondTrials = size(trajStruct(i).allSmoothFR,2);
+           gT(trialInd:trialInd+numCondTrials-1) = ones(1,numCondTrials)*target;
+           gP(trialInd:trialInd+numCondTrials-1) = ones(1,numCondTrials)*posture;
+           FR(trialInd:trialInd+numCondTrials-1,:) = vertcat(trajStruct(i).allSmoothFR.trialAvg);
+           trialInd = trialInd + numCondTrials;
         end
+        group = {gT,gP}; %Grouping variable 
         
-        %Perform Anova 
-        resultStruct = struct('channel',[],'dataTable',[],'p',[],'tbl',[],'stats',[]);
+        %Perform anova
+        resultStruct = struct('channel',[],'p',[],'tbl',[],'stats',[],'tuning',[]);
         structInd = 1;
         for channel = 1:numChannels
             resultStruct(structInd).channel = channel;
-            resultStruct(structInd).dataTable = dataTable(:,:,channel);
-            [p,tbl,stats] = anova2(resultStruct(structInd).dataTable,minNumCondTrials,'off');
+            [p,tbl,stats] = anovan(FR(:,channel)',group,'alpha',alpha,'display','off');
             resultStruct(structInd).p = p;
             resultStruct(structInd).tbl = tbl;
             resultStruct(structInd).stats = stats;
             structInd = structInd + 1;
         end
-        
-        %Plot Pie Chart
+                
+        %Count each type of neuron
+        %'tuning' variable: 0 = neither; 1 = target only; 2 = posture only; 3 = both;
         numTarget = 0; numPosture = 0; numBoth = 0; numNeither = 0;
         for channel = 1:numChannels
             targetP = resultStruct(channel).p(1,1);
-            postureP = resultStruct(channel).p(1,2);
-            if postureP < 0.05 
-                if targetP < 0.05
+            postureP = resultStruct(channel).p(2,1);
+            if postureP < alpha
+                if targetP < alpha
                     numBoth = numBoth + 1;
+                    resultStruct(channel).tuning = 3;
                 else
                     numPosture = numPosture + 1;
+                    resultStruct(channel).tuning = 2;
                 end
             end
-            if postureP > 0.05 && targetP < 0.05 
+            if postureP > alpha && targetP < alpha
                 numTarget = numTarget + 1;
+                resultStruct(channel).tuning = 1;
             end
-            if postureP > 0.05 && targetP > 0.05
+            if postureP > alpha && targetP > alpha
                 numNeither = numNeither + 1;
+                resultStruct(channel).tuning = 0;
             end
         end
         
+        %Plot Pie Chart
         f = figure; f.Position = [200 200 90 90];   
         pieValues = [numTarget,numPosture,numBoth,numNeither];
         txt = {'Target Only: ';'Posture Only: ';'Mixed: ';'Neither: '}; 
@@ -108,25 +104,19 @@ clear; clc; clf; close all
         for i = 1:size(pText,1)
             pText(i).String = combinedtxt(i);
         end        
-        %title(dataset);
-        %set(gca,'fontname','arial'); set(gca,'fontsize',fs)
         if saveFig
             saveas(gcf,fullfile(saveDir,dataset,'anovaPieChart.svg'));
         end
 
-%% Get tuningData
+        %% Get tuningData for each unit
         %Get tuning data for each posture
         postureTuningData = struct('posture',[],'tuningData',[]);
-       
-        numCh = size(Data(1).spikes,2);
-        numTrials = size(Data,2);
-
         structInd = 1;
         for posture = postureList
             % Preallocate tuningData
-            tuningData = struct('channel',nan,'allData',nan(numTrials,numTargets),'means',nan(1,numTargets),'SD',nan(1,numTargets),'MD',nan,'PD',nan,'b0',nan,'p',nan);
-            tuningData = repmat(tuningData,numCh,1);
-            for i = 1:numCh
+            tuningData = struct('channel',nan,'allData',nan(numTrials,numTargets),'means',nan(1,numTargets),'SD',nan(1,numTargets),'MD',nan,'PD',nan,'b0',nan,'p',nan,'sigTuned',nan);
+            tuningData = repmat(tuningData,numChannels,1);
+            for i = 1:numChannels
                 tuningData(i).channel = i;
             end
             % Get tuningData
@@ -135,9 +125,9 @@ clear; clc; clf; close all
             for target = targetList
                 if  any([tempTrajStruct.target]==target)
                     targetData = tempTrajStruct([tempTrajStruct.target]==target);
-                    for trial = 1:numel(targetData.allZSmoothFR)
-                        trialFR = mean(targetData.allZSmoothFR(trial).traj);
-                        for channel = 1:numCh
+                    for trial = 1:numel(targetData.allSmoothFR)
+                        trialFR = targetData.allSmoothFR(trial).trialAvg;
+                        for channel = 1:numChannels
                             tuningData(channel).allData(trial,targetInd) = trialFR(channel);
                         end
                     end
@@ -150,23 +140,18 @@ clear; clc; clf; close all
                tuningData(i).SD = nanstd(tuningData(i).allData);
             end
             %Fit Tuning Curves
-            targetAngles = transpose(45*(targetList-1)); 
-            for channel = 1:numCh
-                y = nan(numTargets,1); x = nan(numTargets,3);
-                for targetInd = 1:numTargets
-                    y(targetInd,1) = tuningData(channel).means(1,targetInd);
-                    x(targetInd,:) = [1,sind(targetAngles(targetInd)),cosd(targetAngles(targetInd))];
-                end
-                [B,bint,r,rint,stats] = regress(y,x);
-                b0 = B(1,1); b1 = B(2,1); b2 = B(3,1); p = stats(3);
-                tuningData(channel).MD = sqrt(b1.^2 + b2.^2);
-                PD = atan2d(b1,b2);
-                if PD < 0
-                    PD = 360 - abs(PD);
-                end
+            for channel = 1:numChannels
+                targetMeans = tuningData(channel).means;
+                [PD,MD,b0,p] = fitTC(targetMeans);
                 tuningData(channel).PD= PD;
+                tuningData(channel).MD = MD;
                 tuningData(channel).b0 = b0;
                 tuningData(channel).p = p;
+                if p < alpha
+                    tuningData(channel).sigTuned = true;
+                else
+                    tuningData(channel).sigTuned = false;
+                end
             end
             %Fill Struct
             postureTuningData(structInd).posture = posture;
@@ -174,143 +159,102 @@ clear; clc; clf; close all
             structInd = structInd + 1;
         end
         
-%% Get posture PD dists 
-    posturePDDist = struct('channel',[],'posture',[],'PDDist',[],'PD',[],'sigTuned',[]);
-    structInd = 1;
-    for channel = 1:numCh
-       for posture = postureList
-           %Get repeated samples
-           targetInd = 1;
-           samples = NaN(minNumCondTrials,numTargets);
-           for target = targetList
-                allZSmoothFR = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allZSmoothFR;
-                trialAvg = vertcat(allZSmoothFR.trialAvg);
-                samples(:,targetInd) =  datasample(trialAvg(:,channel),minNumCondTrials,1,'Replace',false);
-                targetInd = targetInd + 1;
-           end
-           %For each sample, get PDDist
-           PDDist = NaN(1,minNumCondTrials);
-           for i = 1:minNumCondTrials
-                y = nan(numTargets,1); x = nan(numTargets,3);
-                for targetInd = 1:numTargets
-                    y(targetInd,1) = samples(i,targetInd);
-                    x(targetInd,:) = [1,sind(targetAngles(targetInd)),cosd(targetAngles(targetInd))];
-                end
-                [B,bint,r,rint,stats] = regress(y,x);
-                b0 = B(1,1); b1 = B(2,1); b2 = B(3,1); p = stats(3);
-                MD = sqrt(b1.^2 + b2.^2);
-                PD = atan2d(b1,b2);
-                if PD < 0
-                    PD = 360 - abs(PD);
-                end               
-                PDDist(i) = PD;
-           end
-           %PD is mean of PDDist
-           PD = mean(PDDist);
-           %sigTuned if p<sigThreshold
-           tempData = postureTuningData([postureTuningData.posture]==posture).tuningData;
-           p = tempData([tempData.channel]==channel).p;
-           if p < sigThreshold
-               sigTuned = true;
-           else
-               sigTuned = false;
-           end           
-           posturePDDist(structInd).channel = channel;
-           posturePDDist(structInd).posture = posture;
-           posturePDDist(structInd).PDDist = PDDist;
-           posturePDDist(structInd).PD = PD;
-           posturePDDist(structInd).sigTuned = sigTuned;
-           structInd = structInd + 1;
-       end
-    end
- 
-%% Get across-posture changes (use PD from all data here)
-        acrossPostureStruct = struct('posture',[],'delPD',[],'delMD',[],'absDelPD',[],'uAbsDelPD',[],'chList',[],'sigPDChange',[]);
+        %% Assess changes in PD and significance 
+        acrossPostureStruct = struct('compPosture',[],'delPD',[],'absDelPD',[],'chList',[],'sigPDChange',[]);
         structInd = 1;
-        for posture = postureList(2:end)
-            %Get chList to test (sig tuned in both postures)
+        for compPosture = postureList(2:end)
+            %Get list of ch that is sigTuned in ref & comparison postures
             chList = [];
-            for channel = 1:numCh
-               sigTunedP1 = posturePDDist([posturePDDist.channel]==channel & [posturePDDist.posture]==1).sigTuned;
-               sigTunedCurP = posturePDDist([posturePDDist.channel]==channel & [posturePDDist.posture]==posture).sigTuned;
-               if sigTunedP1 && sigTunedCurP
-                   chList = [chList,channel];
+            for channel = 1:numChannels
+                sigTunedRefPosture = postureTuningData([postureTuningData.posture]==refPosture).tuningData(channel).sigTuned;
+                sigTunedCompPosture = postureTuningData([postureTuningData.posture]==compPosture).tuningData(channel).sigTuned;
+                if sigTunedRefPosture && sigTunedCompPosture
+                     chList = [chList,channel];
+                end
+            end 
+            
+            %For channels that are sigTuned in both postures, assess PD
+            %change and its significance 
+            delPD = NaN(1,length(chList));
+            sigPDChange = false(1,length(chList));          
+            for i = 1:length(chList)
+                i
+               channel = chList(i);
+               %Get PD change 
+               refPosturePD = postureTuningData([postureTuningData.posture]==refPosture).tuningData(channel).PD;
+               compPosturePD = postureTuningData([postureTuningData.posture]==compPosture).tuningData(channel).PD;
+               delPD(i) = signedAngleDiff(refPosturePD,compPosturePD);
+               %Get empirical dist for ref posture
+               refEmpDist = postureTuningData([postureTuningData.posture]==refPosture).tuningData(channel).allData;
+               %Get empirical dist for comp posture
+               compEmpDist = postureTuningData([postureTuningData.posture]==compPosture).tuningData(channel).allData;
+               %Get bootstrapped delPD estimates     
+               bootDelPD = nan(1,numBootReps);               
+               for bootRep = 1:numBootReps
+                   %Get bootstrap resample for each posture
+                   refBootResample = nan(size(refEmpDist));
+                   compBootResample = nan(size(compEmpDist));
+                   for target = 1:8
+                      numTargObs = sum(~isnan(refEmpDist(:,target)));
+                      refBootResample(1:numTargObs,target) = datasample(refEmpDist(1:numTargObs,target),numTargObs);
+                      numTargObs = sum(~isnan(compEmpDist(:,target)));
+                      compBootResample(1:numTargObs,target) = datasample(compEmpDist(1:numTargObs,target),numTargObs);
+                   end                  
+                   %Compute target means for each posture 
+                   refTargetMeans = nanmean(refBootResample);
+                   compTargetMeans = nanmean(compBootResample);
+                   %Get PD estimate for each posture 
+                   [refBootPD,~,~,~] = fitTC(refTargetMeans); 
+                   [compBootPD,~,~,~] = fitTC(compTargetMeans); 
+                   %Measure delPD
+                   bootDelPD(bootRep) = signedAngleDiff(refBootPD,compBootPD);
+               end              
+               %Test if significatly different from zero (two-tailed)
+               CI = [prctile(bootDelPD,(alpha*100/2)),prctile(bootDelPD,100-(alpha*100/2))];
+               if ~(CI(1)<0 && CI(2)>0) %if CI does not contain zero
+                   sigPDChange(i) = true;
                end
             end
             
-            %Check for significant change in tuning. If present, mark
-            %sigPDChange
-            delPD = NaN(1,length(chList));
-            sigPDChange = false(1,length(chList));
-            for i = 1:length(chList)
-               channel = chList(i);
-               posture1PDDist = posturePDDist([posturePDDist.channel]==channel & [posturePDDist.posture]==1).PDDist;
-               %posture1PD = posturePDDist([posturePDDist.channel]==channel & [posturePDDist.posture]==1).PD;
-               curPosturePDDist = posturePDDist([posturePDDist.channel]==channel & [posturePDDist.posture]==posture).PDDist;
-               %curPosturePD = posturePDDist([posturePDDist.channel]==channel & [posturePDDist.posture]==posture).PD;
-               [h,p,ci,stats] = ttest2(posture1PDDist,curPosturePDDist,'Alpha',sigThreshold,'Vartype','unequal');
-              
-               
-               tuningData = postureTuningData([postureTuningData.posture]==1).tuningData;
-               posture1PD = tuningData(channel).PD;
-               
-               tuningData = postureTuningData([postureTuningData.posture]==posture).tuningData;
-               curPosturePD = tuningData(channel).PD;
-               
-               
-               
-               delPD(i) = signedAngleDiff(posture1PD,curPosturePD);
-               if h == 1
-                    sigPDChange(i) = true;
-               end
-%                figure; hold on;
-%                histogram(posture1PDDist,[0:45:360]);
-%                histogram(curPosturePDDist,[0:45:360]);
-%                close
-            end
-
+            %Fill struct
             acrossPostureStruct(structInd).delPD = delPD;
             acrossPostureStruct(structInd).absDelPD = abs(delPD);
             acrossPostureStruct(structInd).sigPDChange = sigPDChange;
-            acrossPostureStruct(structInd).posture = posture;
+            acrossPostureStruct(structInd).compPosture = compPosture;
             acrossPostureStruct(structInd).chList = chList;
-            structInd = structInd + 1;
+            structInd = structInd + 1;            
         end
-        
-         
-%% Make violin plots         
-  %Plot Change PD violins
-        violinMat = [];
-        absViolinMat = [];
+
+        %% Make violin plots         
+        %Plot Change PD violins
+        violinMat = []; absViolinMat = [];
         i = 1;
-        for posture = postureList(2:end)
-            delPD = acrossPostureStruct([acrossPostureStruct.posture]==posture).delPD;
-                violinMat(i:i+length(delPD)-1,1) = posture*ones(length(delPD),1);
+        for compPosture = postureList(2:end)
+            delPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).delPD;
+                violinMat(i:i+length(delPD)-1,1) = compPosture*ones(length(delPD),1);
                 violinMat(i:i+length(delPD)-1,2) = delPD';
-            absDelPD = acrossPostureStruct([acrossPostureStruct.posture]==posture).absDelPD;
-                absViolinMat(i:i+length(absDelPD)-1,1) = posture*ones(length(absDelPD),1);
+            absDelPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).absDelPD;
+                absViolinMat(i:i+length(absDelPD)-1,1) = compPosture*ones(length(absDelPD),1);
                 absViolinMat(i:i+length(absDelPD)-1,2) = absDelPD';
             i = i + length(delPD);
-        end
-        
+        end       
         plotPostures = unique(violinMat(:,1));
-        fs = 20;
+        fs = 20;      
         
         f= figure; f.Position = [200 200 100 100]; hold on;
         violinplot(violinMat(:,2),violinMat(:,1),'ViolinColor',pcmap(plotPostures,:),'ShowData',false);
         scatterScale = 0.3;
-        postureInd = 1;
-        for posture = postureList(2:end)
-           delPD = acrossPostureStruct([acrossPostureStruct.posture]==posture).delPD;
-           sigPDChange = acrossPostureStruct([acrossPostureStruct.posture]==posture).sigPDChange;
+        compPostureInd = 1;
+        for compPosture = postureList(2:end)
+           delPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).delPD;
+           sigPDChange = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).sigPDChange;
            sigDelPD = delPD(sigPDChange);
            insigDelPD = delPD(~sigPDChange);
-           plot(postureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',1,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(posture,:));
-           plot(postureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',6,'Color',pcmap(posture,:));
-           postureInd = postureInd + 1;
+           plot(compPostureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',1,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(compPosture,:));
+           plot(compPostureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',6,'Color',pcmap(compPosture,:));
+           compPostureInd = compPostureInd + 1;
         end
-        %xlabel('Posture')
-        %ylabel('\Delta PD rel. to Posture 1 (deg)')
+        %xlabel('Posture') %ylabel('\Delta PD rel. to Posture 1 (deg)')
         xlim([0 7])
         %set(gca,'fontname','arial'); set(gca,'fontsize',fs)
         set(gca,'TickDir','out')
@@ -318,115 +262,38 @@ clear; clc; clf; close all
             saveas(gcf,fullfile(saveDir,dataset,'ChangePD.svg'));
         end
         
-       
-        
         %Violin w channels labeled
         figure; hold on;
         violinplot(violinMat(:,2),violinMat(:,1),'ViolinColor',pcmap(plotPostures,:),'ShowData',false);
         scatterScale = 0.3;
-        postureInd = 1;
-        for posture = postureList(2:end)
-           delPD = acrossPostureStruct([acrossPostureStruct.posture]==posture).delPD;
-           sigPDChange = acrossPostureStruct([acrossPostureStruct.posture]==posture).sigPDChange;
+        compPostureInd = 1;
+        for compPosture = postureList(2:end)
+           delPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).delPD;
+           sigPDChange = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).sigPDChange;
            sigDelPD = delPD(sigPDChange);
            insigDelPD = delPD(~sigPDChange);
-           plot(postureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',3,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(posture,:));
-           plot(postureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',13,'Color',pcmap(posture,:));
-           postureInd = postureInd + 1;
+           plot(compPostureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',3,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(compPosture,:));
+           plot(compPostureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',13,'Color',pcmap(compPosture,:));
+           compPostureInd = compPostureInd + 1;
         end
-
-        biggestPosture = acrossPostureStruct(end).posture;
-        
+        biggestPosture = acrossPostureStruct(end).compPosture;        
         chList = acrossPostureStruct(end).chList;
         for i = 1:length(chList)
            ch = chList(i);
-           posture = biggestPosture;
+           compPosture = biggestPosture;
            delPD = acrossPostureStruct(end).delPD(i);
            sigPDChange = acrossPostureStruct(end).sigPDChange;
            if abs(delPD) > 10 & sigPDChange(i)
-               text(postureInd-1+randn*0.25,delPD,num2str(ch));
+               text(compPostureInd-1+randn*0.25,delPD,num2str(ch));
            end
-        end
-        
+        end       
         xlabel('Posture')
         ylabel('\Delta PD rel. to Posture 1 (deg)')
         xlim([0 7])
         set(gca,'fontname','arial'); set(gca,'fontsize',fs)
-%         if saveFig
-%             saveas(gcf,fullfile(saveDir,dataset,'ChangePD_Labelled.fig'));
-%         end
-
-%% Tuning curves
-%         %Plot All TC's
-%         maxChangePD = zeros(1,numCh);
-%         numChannelGroups = ceil(numCh/64);
-%         for channelGroup = 1:numChannelGroups
-%             channelList = (channelGroup-1)*64+1:(channelGroup)*64;
-%             channelList = channelList(channelList <= numCh);
-%             f = figure; f.Position = [10 10 700 650];
-%             [ha, pos] = tight_subplot(8,8,0,0,0);
-%             postureInd = 1;
-%             postureListInd = 1;
-%             targetAngles = (targetList-1)*45;
-%             for posture = postureList
-%                 %Get tuning data
-%                 tuningData = postureTuningData([postureTuningData.posture]==posture).tuningData;
-%                 %Plot TC's
-%                 for channel = channelList
-%                     row = floor(channel-(channelList(1)-1)/8)+1;
-%                     col = channel-(channelList(1)-1) - 8*(row-1); 
-%                     axes(ha((row-1)*8 + col));
-%                     avgFR = tuningData(channel).means;
-%                     stdFR = tuningData(channel).SD;
-%                     PD = tuningData(channel).PD;
-%                     MD = tuningData(channel).MD;
-%                     b0 = tuningData(channel).b0;
-%                     p = tuningData(channel).p;
-%                     Bfit = [b0;MD];
-%                     angleSpan = [0:45:315]';
-%                     x = [ones(8,1),cosd(angleSpan-PD)];
-%                     cosFit = x*Bfit;
-%                     if p < sigThreshold
-%                         plot(angleSpan,cosFit,'Color',pcmap(posture,:),'LineWidth',1.5)
-%                     else
-%                         plot(angleSpan,cosFit,'--','Color',pcmap(posture,:),'LineWidth',1.5)
-%                     end
-%                     hold on;
-%                     plot(targetAngles,avgFR,'.','Color',pcmap(posture,:),'MarkerSize',5);
-%                     xticks([]); yticks([])        
-%                     if posture == postureList(end)
-%                         yl = ylim;
-%                         xl = xlim;
-%                         scale = 0.7;
-%                         ylRange = yl(2)-yl(1);
-%                         ylMid = (yl(2)+yl(1))/2;
-%                         upperLabel = ylMid+(ylRange/2)*scale;
-%                         lowerLabel = ylMid-(ylRange/2)*scale;
-%                         text(xl(1),upperLabel,num2str(channel),'FontSize',8)
-%                         
-%                         channelDelPD = [];
-%                         for i = 1:size(acrossPostureStruct,2)
-%                             channelDelPD(i) = acrossPostureStruct(i).delPD(channel);
-%                         end
-%                         if any(~isnan(channelDelPD))
-%                            [~,maxChannelDelPDInd] = max(abs(channelDelPD(~isnan(channelDelPD))));
-%                            maxChannelDelPD = round(channelDelPD(maxChannelDelPDInd));
-%                            text(xl(1),lowerLabel,['\DeltaPD ',num2str(maxChannelDelPD)],'FontSize',8)
-%                         end
-%                         
-%         %                 text(0,lowerLabel,num2str(lowerLabel),'FontSize',8)
-%         %                 text(0,upperLabel,num2str(upperLabel),'FontSize',8)
-%         %                 text(xl(1)+(xl(2)-xl(1))*.7,upperLabel,['Ch' ,num2str(channel)],'FontSize',8)
-%                     end         
-%                 end
-%                 postureInd = postureInd + 1;
-%                 postureListInd = postureListInd + 1;     
-%             end     
-%             set(gca,'fontname','arial');
-%             if saveFig
-%                 saveas(gcf,fullfile(saveDir,'All TC',[dataset,'TC_ChGroup',num2str(channelGroup),'.svg']));
-%             end
-%         end
+        if saveFig
+            saveas(gcf,fullfile(saveDir,dataset,'ChangePD_Labelled.fig'));
+        end
 
         %Plot select TC's
          switch dataset
@@ -461,14 +328,14 @@ clear; clc; clf; close all
                 angleSpan = [0:45:315]';
                 x = [ones(8,1),cosd(angleSpan-PD)];
                 cosFit = x*Bfit;
-                if p < sigThreshold
+                if p < alpha
                     plot(angleSpan,cosFit,'Color',pcmap(posture,:),'LineWidth',1.5)
                 else
                     plot(angleSpan,cosFit,'--','Color',pcmap(posture,:),'LineWidth',1.5)
                 end
                 hold on;
                 %plot(targetAngles,avgFR,'.','Color',pcmap(posture,:),'MarkerSize',5);
-                plot(targetAngles',allData,'.','Color',pcmap(posture,:),'MarkerSize',3);
+                plot(angleSpan',allData,'.','Color',pcmap(posture,:),'MarkerSize',3);
                 %xticks([]); yticks([]) 
                 xticks([0:90:270]);
                 if posture == postureList(end)
@@ -493,6 +360,5 @@ clear; clc; clf; close all
                 saveas(gcf,fullfile(saveDir,dataset,['ch',num2str(channel),'_TC.svg']));
              end
          end
-         
-         
+                 
     end
