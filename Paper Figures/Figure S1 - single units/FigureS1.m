@@ -5,36 +5,34 @@ clear; clc; clf; close all
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S1 - single units';
     set(0, 'DefaultFigureRenderer', 'painters');
     
-%% Setup colormaps    
-    [pcmap,tcmap,rainbow] = getColorMaps();
-    pcmap = vertcat(pcmap,rainbow(4:5,:));
-    anovaCmap = rainbow([3,4,5,6],:);
-    
 %% Set parameters
     refPosture = 1; %Use posture 1 for all task x animals
     alpha = 0.05; %For 2-way ANOVA
     numBootReps = 10000; %Number of bootstrap resamples when assessing significance of delPD
-    trajFields = {'smoothFR'}; %Don't z-score FRs
-    dataType = 'smoothFR';
     
 %% Main loop
     %TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
-    TCDatasetList = {'E20200316'};
+    TCDatasetList = {'N20171215'};
     
     for datasetList = TCDatasetList        
         %% Get trajStruct
         %Load data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);           
-        %Get trajStruct
-        [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset,'trajFields',trajFields);
+        %Get trajStruct - adjust for no z-score here
+        [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
+        trajFields = {'smoothFR'}; %Don't z-score FRs
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);      
         %Keep only postures with all targets
-        [postureList,~,targetList,~,~,~] = getTrajStructDimensions(trajStruct,'dataType',dataType);
+        [postureList,~,targetList,~,~,~] = getTrajStructDimensions(trajStruct);
         [trajStruct] = keepOnlyPosturesWithAllTargets(trajStruct,postureList,targetList);
-        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct,'dataType',dataType);      
+        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);      
         %Get number of trials 
-        [numTrials] = getTotalNumTrials(trajStruct,'dataType',dataType);
+        [numTrials] = getTotalNumTrials(trajStruct);
+        
+        %% Setup colormap (based on number of postures)
+        [pcmap,tcmap,rainbow] = getColorMaps(numPostures);  
+        anovaCmap = rainbow([3,4,5,6],:);
         
         %% ANOVA and Pie Plot
         %Format data for anova

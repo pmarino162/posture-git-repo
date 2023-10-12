@@ -21,9 +21,8 @@ clear; clc; clf; close all
     [pcmap,tcmap,rainbow] = getColorMaps(numPostures);  
 
 %% Load anova table for dataset
-    anovaResultStruct = load(fullfile('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S1 - single units',dataset,'anovaResult.mat'));
-    anovaResultStruct = anovaResultStruct.resultStruct;
     
+
 %% Plot all PSTHs
     chGroups = {1:49,50:87};       
     %Plot all targets for posture 1
@@ -74,18 +73,19 @@ clear; clc; clf; close all
     
 %% Select units for Fig 2
     %Plot a select few neurons
-    %postureAndTarget = [3,42];  
-    %targetOnly = [29,34,41,43,46];
-    %postureOnly = [49,72,70];
-    %prettiest = [3,34,41,42,43,82];
-    mixedUnits = find([anovaResultStruct.tuning]==3);
-    targetUnits = find([anovaResultStruct.tuning]==1);
-    postureUnits = find([anovaResultStruct.tuning]==2);
-    %chList = [3,34,49];
-    chList = [3,34,65];
+    postureAndTarget = [3,42];
+    targetOnly = [29,34,41,43,46];
+    postureOnly = [49,72,70];
+    prettiest = [3,34,41,42,43,82];
+    chList = [3,34,49];
+    
 %% Plot selected units 
+    %Select neurons for plotting 
+    f = figure; fs = 14;
+    f.Position = [100,-200,518,950];
+    postureInd = 1;
+    
     %Plot all postures for target 1
-    f = figure; f.Position = [100,-200,518,950];
     target = 1;
     for posture = postureList
         traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgSmoothFR.traj;
@@ -94,7 +94,7 @@ clear; clc; clf; close all
         time = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgSmoothFR.timestamps;
         chInd = 1;
         for ch = chList
-            subplot(3,1,chInd)
+            subplot(3,1,dimInd)
             shadedErrorBar(time,traj(:,ch),SEM(:,ch),'lineprops',{'LineWidth',5,'Color',pcmap(posture,:)});
             hold on;
             chInd = chInd + 1;
@@ -103,16 +103,14 @@ clear; clc; clf; close all
     format3NeuronPSTH();
     
     %Plot all targets for posture 1
-    f = figure; f.Position = [100,-200,518,950];
     posture = 1;
     for target = targetList
         traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgSmoothFR.traj;
         CI = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgSmoothFR.CI95;
         SEM = CI./1.96;
         time = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgSmoothFR.timestamps;
-        chInd = 1;
         for ch = chList
-            subplot(3,1,chInd)
+            subplot(3,1,dimInd)
             shadedErrorBar(time,traj(:,ch),SEM(:,ch),'lineprops',{'LineWidth',5,'Color',tcmap(target,:)});
             hold on;
             chInd = chInd + 1;
@@ -121,16 +119,18 @@ clear; clc; clf; close all
     format3NeuronPSTH();
 
 %% Local functions
-    function [] = format3NeuronPSTH()
-        for chInd = 1:3
-            subplot(3,1,chInd); hold on
-            ax = gca; xlimits = ax.XLim; ylimits = ax.YLim;
-            ax.TickDir = 'out';
-            set(gca,'fontname','arial'); set(gca,'fontsize',14);
+function [] = format3NeuronPSTH()
+    for chInd = 1:3
+        subplot(3,1,chInd); hold on
+        ax = gca; xlimits = ax.XLim; ylimits = ax.YLim;
+        ax.TickDir = 'out';
+        set(gca,'fontname','arial'); set(gca,'fontsize',fs);
+        if ismember(chInd,[1,2,3])
             xticklabels({});
-            if chInd == 3
-                xticks([0,100,200])
-                xlabel('time (ms)')
-            end 
         end
+        if chInd == 3
+            xticks([0,100,200])
+            xlabel('time (ms)')
+        end 
     end
+end
