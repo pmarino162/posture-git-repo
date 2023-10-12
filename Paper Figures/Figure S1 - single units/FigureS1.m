@@ -1,12 +1,5 @@
 clear; clc; clf; close all
 
-%%% CHANGES TO MAKE PER STEVE MEETING %%%%%%%%%%%%%%%%%%%%
-%%% - MAKE SURE CHANGE IN PD IS SIGNED
-%%% - FOR EACH COMPARISON, BOOTSTRAP ESTIMATE OF TUNING CURVES, GET CHANGE IN PD
-%%% - THAT GIVES YOU 10000 (SIGNED) CHANGE IN PD ESTIMATES
-%%% - ASSESS WHETHER THAT DISTRIBUTION IS SIGNIFICANTLY DIFFERENT FROM ZERO
-%%%   (USING T STATISTIC)
-
 %% Setup saveFig   
     saveFig = false;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S1 - single units';
@@ -18,16 +11,15 @@ clear; clc; clf; close all
     anovaCmap = rainbow([3,4,5,6],:);
     
 %% Set parameters
-    sigThreshold = 0.10;
     refPosture = 1; %Use posture 1 for all task x animals
     alpha = 0.05; %For 2-way ANOVA
-    numBootReps = 100; %Number of bootstrap resamples when assessing significance of delPD
+    numBootReps = 10000; %Number of bootstrap resamples when assessing significance of delPD
     trajFields = {'smoothFR'}; %Don't z-score FRs
     dataType = 'smoothFR';
     
 %% Main loop
     %TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
-    TCDatasetList = {'E20200316'};
+    TCDatasetList = {'N20190226'};
     
     for datasetList = TCDatasetList        
         %% Get trajStruct
@@ -175,8 +167,8 @@ clear; clc; clf; close all
             chList = [];
             for channel = 1:numChannels
                 sigTunedRefPosture = postureTuningData([postureTuningData.posture]==refPosture).tuningData(channel).sigTuned;
-                sigTunedComparisonPosture = postureTuningData([postureTuningData.posture]==compPosture).tuningData(channel).sigTuned;
-                if sigTunedRefPosture && sigTunedComparisonPosture
+                sigTunedCompPosture = postureTuningData([postureTuningData.posture]==compPosture).tuningData(channel).sigTuned;
+                if sigTunedRefPosture && sigTunedCompPosture
                      chList = [chList,channel];
                 end
             end 
@@ -186,9 +178,12 @@ clear; clc; clf; close all
             delPD = NaN(1,length(chList));
             sigPDChange = false(1,length(chList));          
             for i = 1:length(chList)
+                i
                channel = chList(i);
                %Get PD change 
-               delPD(i) = signedAngleDiff(posture1PD,curPosturePD);
+               refPosturePD = postureTuningData([postureTuningData.posture]==refPosture).tuningData(channel).PD;
+               compPosturePD = postureTuningData([postureTuningData.posture]==compPosture).tuningData(channel).PD;
+               delPD(i) = signedAngleDiff(refPosturePD,compPosturePD);
                %Get empirical dist for ref posture
                refEmpDist = postureTuningData([postureTuningData.posture]==refPosture).tuningData(channel).allData;
                %Get empirical dist for comp posture
@@ -215,8 +210,8 @@ clear; clc; clf; close all
                    bootDelPD(bootRep) = signedAngleDiff(refBootPD,compBootPD);
                end              
                %Test if significatly different from zero (two-tailed)
-               CI = [prctile(bootDelPD,alpha/2),prctile(bootDelPD,100-(alpha/2))];
-               if CI(1)<0 && CI(2)>0
+               CI = [prctile(bootDelPD,(alpha*100/2)),prctile(bootDelPD,100-(alpha*100/2))];
+               if ~(CI(1)<0 && CI(2)>0) %if CI does not contain zero
                    sigPDChange(i) = true;
                end
             end
@@ -234,30 +229,30 @@ clear; clc; clf; close all
         %Plot Change PD violins
         violinMat = []; absViolinMat = [];
         i = 1;
-        for posture = postureList(2:end)
-            delPD = acrossPostureStruct([acrossPostureStruct.posture]==posture).delPD;
-                violinMat(i:i+length(delPD)-1,1) = posture*ones(length(delPD),1);
+        for compPosture = postureList(2:end)
+            delPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).delPD;
+                violinMat(i:i+length(delPD)-1,1) = compPosture*ones(length(delPD),1);
                 violinMat(i:i+length(delPD)-1,2) = delPD';
-            absDelPD = acrossPostureStruct([acrossPostureStruct.posture]==posture).absDelPD;
-                absViolinMat(i:i+length(absDelPD)-1,1) = posture*ones(length(absDelPD),1);
+            absDelPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).absDelPD;
+                absViolinMat(i:i+length(absDelPD)-1,1) = compPosture*ones(length(absDelPD),1);
                 absViolinMat(i:i+length(absDelPD)-1,2) = absDelPD';
             i = i + length(delPD);
         end       
         plotPostures = unique(violinMat(:,1));
-        %fs = 20;      
+        fs = 20;      
         
         f= figure; f.Position = [200 200 100 100]; hold on;
         violinplot(violinMat(:,2),violinMat(:,1),'ViolinColor',pcmap(plotPostures,:),'ShowData',false);
         scatterScale = 0.3;
-        postureInd = 1;
-        for posture = postureList(2:end)
-           delPD = acrossPostureStruct([acrossPostureStruct.posture]==posture).delPD;
-           sigPDChange = acrossPostureStruct([acrossPostureStruct.posture]==posture).sigPDChange;
+        compPostureInd = 1;
+        for compPosture = postureList(2:end)
+           delPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).delPD;
+           sigPDChange = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).sigPDChange;
            sigDelPD = delPD(sigPDChange);
            insigDelPD = delPD(~sigPDChange);
-           plot(postureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',1,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(posture,:));
-           plot(postureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',6,'Color',pcmap(posture,:));
-           postureInd = postureInd + 1;
+           plot(compPostureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',1,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(compPosture,:));
+           plot(compPostureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',6,'Color',pcmap(compPosture,:));
+           compPostureInd = compPostureInd + 1;
         end
         %xlabel('Posture') %ylabel('\Delta PD rel. to Posture 1 (deg)')
         xlim([0 7])
@@ -271,37 +266,34 @@ clear; clc; clf; close all
         figure; hold on;
         violinplot(violinMat(:,2),violinMat(:,1),'ViolinColor',pcmap(plotPostures,:),'ShowData',false);
         scatterScale = 0.3;
-        postureInd = 1;
-        for posture = postureList(2:end)
-           delPD = acrossPostureStruct([acrossPostureStruct.posture]==posture).delPD;
-           sigPDChange = acrossPostureStruct([acrossPostureStruct.posture]==posture).sigPDChange;
+        compPostureInd = 1;
+        for compPosture = postureList(2:end)
+           delPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).delPD;
+           sigPDChange = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).sigPDChange;
            sigDelPD = delPD(sigPDChange);
            insigDelPD = delPD(~sigPDChange);
-           plot(postureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',3,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(posture,:));
-           plot(postureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',13,'Color',pcmap(posture,:));
-           postureInd = postureInd + 1;
+           plot(compPostureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',3,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(compPosture,:));
+           plot(compPostureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',13,'Color',pcmap(compPosture,:));
+           compPostureInd = compPostureInd + 1;
         end
-
-        biggestPosture = acrossPostureStruct(end).posture;
-        
+        biggestPosture = acrossPostureStruct(end).compPosture;        
         chList = acrossPostureStruct(end).chList;
         for i = 1:length(chList)
            ch = chList(i);
-           posture = biggestPosture;
+           compPosture = biggestPosture;
            delPD = acrossPostureStruct(end).delPD(i);
            sigPDChange = acrossPostureStruct(end).sigPDChange;
            if abs(delPD) > 10 & sigPDChange(i)
-               text(postureInd-1+randn*0.25,delPD,num2str(ch));
+               text(compPostureInd-1+randn*0.25,delPD,num2str(ch));
            end
-        end
-        
+        end       
         xlabel('Posture')
         ylabel('\Delta PD rel. to Posture 1 (deg)')
         xlim([0 7])
         set(gca,'fontname','arial'); set(gca,'fontsize',fs)
-%         if saveFig
-%             saveas(gcf,fullfile(saveDir,dataset,'ChangePD_Labelled.fig'));
-%         end
+        if saveFig
+            saveas(gcf,fullfile(saveDir,dataset,'ChangePD_Labelled.fig'));
+        end
 
         %Plot select TC's
          switch dataset
@@ -336,14 +328,14 @@ clear; clc; clf; close all
                 angleSpan = [0:45:315]';
                 x = [ones(8,1),cosd(angleSpan-PD)];
                 cosFit = x*Bfit;
-                if p < sigThreshold
+                if p < alpha
                     plot(angleSpan,cosFit,'Color',pcmap(posture,:),'LineWidth',1.5)
                 else
                     plot(angleSpan,cosFit,'--','Color',pcmap(posture,:),'LineWidth',1.5)
                 end
                 hold on;
                 %plot(targetAngles,avgFR,'.','Color',pcmap(posture,:),'MarkerSize',5);
-                plot(targetAngles',allData,'.','Color',pcmap(posture,:),'MarkerSize',3);
+                plot(angleSpan',allData,'.','Color',pcmap(posture,:),'MarkerSize',3);
                 %xticks([]); yticks([]) 
                 xticks([0:90:270]);
                 if posture == postureList(end)
