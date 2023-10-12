@@ -19,7 +19,7 @@ clear; clc; clf; close all
     
 %% Main loop
     %TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
-    TCDatasetList = {'N20190226'};
+    TCDatasetList = {'E20200316'};
     
     for datasetList = TCDatasetList        
         %% Get trajStruct
@@ -88,6 +88,11 @@ clear; clc; clf; close all
                 numNeither = numNeither + 1;
                 resultStruct(channel).tuning = 0;
             end
+        end
+        
+        %Export anova resultStruct
+        if saveFig
+            save(fullfile(saveDir,dataset,'anovaResult.mat'),'resultStruct');
         end
         
         %Plot Pie Chart
