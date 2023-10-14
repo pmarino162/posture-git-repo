@@ -1,10 +1,11 @@
 function [minNumCondTrials] = getMinNumCondTrials(trajStruct)    
-
-        numCondTraj = [];
+    
+        %Get minimum number of trials in any condition
+        numCondTraj = nan(1,size(trajStruct,2));
         for i = 1:size(trajStruct,2)
            numTraj = size(trajStruct(i).allZSmoothFR,2);
-           numCondTraj = [numCondTraj,numTraj];
+           numCondTraj(i) = numTraj;
         end
-        [minNumCondTrials,i] = min(numCondTraj);
+        [minNumCondTrials,~] = min(numCondTraj);
         
 end

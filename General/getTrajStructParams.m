@@ -25,6 +25,10 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
                 trialInclStates(1).inclStates = {{'state','React','first',50},{'state','React','first',250}};
                 task = 'bci';
+            case {'E20210901'}
+                trialInclStates(1).trialName = {'BCI Center Out'};
+                condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
+                trialInclStates(1).inclStates = {{'state','Step 1','first',50},{'state','Step 1','first',250}};
             %Iso
             case {'E20200116','E20200117','E20200120'}
                 trialInclStates(1).trialName = {'IsometricForce_1D'};   
