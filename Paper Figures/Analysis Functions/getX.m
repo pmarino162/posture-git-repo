@@ -1,7 +1,7 @@
 function [X] = getX(trajStruct,minNumTimestamps,postureList,numPostures,targetList,numTargets,numChannels)    
     
-        %Get 'X', which is the name used for matrix of concatentated
-        %condition-averages
+        %Get 'X', which is the name used for tensor of concatentated
+        %condition-averages organized by posture and target 
         X = NaN(minNumTimestamps,numTargets,numPostures,numChannels);
         postureInd = 1;
         for posture = postureList

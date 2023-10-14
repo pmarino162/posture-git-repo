@@ -9,10 +9,11 @@ clear; clc; clf; close all
    numPCsToKeep = 10;     %Num PCs to project data into before analysis
    numPdims = 2;
    numTdims = 2;
-   numBootReps = 10000;   %Num bootstrap resamples
-   numRandReps = 10000; %Num random subspace draws per bootstrap
+   numBootReps = 10;   %Num bootstrap resamples
+   numRandReps = 10; %Num random subspace draws per bootstrap
+   numPts = 8;        %Num timePts per trajectory to include
    cutoffNumTraj = 10; %Num trials that must be present in a condition to keep it for analysis 
-   
+    
 %% Setup resultStruct
     resultStruct = struct('animal',[],'dataset',[],'vPP',[],'vPT',[],'vTT',[],'vTP',[],'vPR',[],'vTR',[],'pAngle',[],'pAngleNull',[]);
     structInd = 1;
@@ -26,7 +27,7 @@ clear; clc; clf; close all
            %NEED TO FIX 3/18 %{'E20200316','E20200317','E20200318','E20200319','N20171215','N20180221','R20201020','R20201021'};
     isoDatasetList = {'E20200116','E20200117','E20200120'};
     
-    for datasetList = {'E20200316'}
+    for datasetList = bciDatasetList
         %Load data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
@@ -35,17 +36,15 @@ clear; clc; clf; close all
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);            
         %Remove any conditions for which there weren't enough trials
         [numCondTrials] = getNumCondTrials(trajStruct,'showHist',false);         
-        trajStruct = trajStruct(numCondTrials >= cutoffNumTraj);       
+        trajStruct = trajStruct(numCondTraj >= cutoffNumTraj);       
         %Keep only postures with all targets; get trajStructDims
         [postureList,~,targetList,~,~,~] = getTrajStructDimensions(trajStruct);
         [trajStruct] = keepOnlyPosturesWithAllTargets(trajStruct,postureList,targetList);
         [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);
         %Project all data down to top PCs
         [allTraj] = collectAllAvgTraj(trajStruct);
-        [trajStruct] = projectToTopPCs(allTraj,trajStruct,numPCsToKeep);
+        [trajStruct] = projectToTopPCs(trajStruct,numPCsToKeep);
 
-        
-        
         %Preallocate 
         vPP = NaN(1,2*numBootReps); vPT = NaN(1,2*numBootReps); vPR = NaN(1,2*numBootReps);         
         vTT = NaN(1,2*numBootReps); vTP = NaN(1,2*numBootReps); vTR = NaN(1,2*numBootReps);
@@ -53,10 +52,9 @@ clear; clc; clf; close all
  
         %Split data into two groups for cross-validation
         [minNumCondTrials] = getMinNumCondTrials(trajStruct);
-        [trajStruct1,trajStruct2] = splitDataforCV(trajStruct,minNumCondTrials,binWidth);  
+        [trajStruct1,trajStruct2] = splitDataforCV(trajStruct,minNumCondTrials);  
         
         %Fit P and T spaces for each group
-        [minNumTimestamps] = getMinNumTimestamps(trajStruct);    
         [pSig1,tSig1] = getPandTsig(trajStruct1,minNumTimestamps);
             pSig1Reshape = reshape(squeeze(pSig1),[numPostures*minNumTimestamps,numPCsToKeep]);
             tSig1Reshape = reshape(squeeze(tSig1),[numTargets*minNumTimestamps,numPCsToKeep]);
@@ -81,14 +79,14 @@ clear; clc; clf; close all
                 tDims = tDimsGroup1;
             end
             for bootRep = 1:numBootReps
-                bootRep
                 %Subsample with replacement
+                possibleSampInd = 1:numSample;
                 sampStruct = projStruct;
                 for j = 1:size(sampStruct,2)
-                    numTraj = size(projStruct(j).allZSmoothFR,2);
+                    numTraj = size(projStruct(j).allSmoothFR,2);
                     sampInd = randsample(numTraj,numTraj,true); %True => with replacement
-                    sampStruct(j).allSmoothFR = projStruct(j).allZSmoothFR(sampInd);
-                    [sampStruct(j).avgZSmoothFR.traj,sampStruct(j).avgZSmoothFR.timestamps] = getAvgTraj(sampStruct(j).allZSmoothFR,binWidth);               
+                    sampStruct(j).allSmoothFR = projStruct(j).allSmoothFR(sampInd);
+                    [sampStruct(j).avgSmoothFR.traj,sampStruct(j).avgSmoothFR.timestamps] = getAvgTraj20211210(sampStruct(j).allSmoothFR,binWidth);               
                 end
                 %Get P and T signals
                 [pSig,tSig] = getPandTsig(sampStruct,minNumTimestamps);
@@ -105,7 +103,7 @@ clear; clc; clf; close all
                 vTP(curInd) = trace(DP'*CT*DP)./trace(CT);
                 
                 %Get pAngle
-               % allPAngle = rad2deg(subspacea(DP,DT));
+                allPAngle = rad2deg(subspacea(DP,DT));
                 %pAngle(curInd) = allPAngle(1);
                 
                 %Get pAngleNull
@@ -126,6 +124,7 @@ clear; clc; clf; close all
                     DR = orth([v1,v2]);
                     tempvPR(j) = trace(DR'*CP*DR)/trace(CP);
                     tempvTR(j) = trace(DR'*CT*DR)/trace(CT);
+
                 end       
                 vPR(curInd) = mean(tempvPR);
                 vTR(curInd) = mean(tempvTR);
@@ -299,7 +298,7 @@ clear; clc; clf; close all
         %Get posture & target lists
         postureList = unique([trajStruct.posture]); numPostures = size(postureList,2);
         targetList = unique([trajStruct.target]); numTargets = size(targetList,2);
-        numPCsToKeep = size(trajStruct(1).avgZSmoothFR.traj,2); 
+        numPCsToKeep = size(trajStruct(1).avgSmoothFR.traj,2); 
 
         %Form X
         X = NaN(minNumTimestamps,numTargets,numPostures,numPCsToKeep);
@@ -307,7 +306,7 @@ clear; clc; clf; close all
         for posture = postureList
             targetInd = 1;
             for target = targetList
-                traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgZSmoothFR.traj;
+                traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgSmoothFR.traj;
                 X(:,targetInd,postureInd,:) = traj(1:minNumTimestamps,:); 
                 targetInd = targetInd + 1;
             end

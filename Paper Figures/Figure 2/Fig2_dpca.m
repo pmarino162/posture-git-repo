@@ -5,6 +5,11 @@ clear; clc; clf; close all
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 2';
     set(0, 'DefaultFigureRenderer', 'painters');
     
+%% Set parameters
+    bciAnalysisWindow = [];
+    isoAnalysisWindow = [];
+    reachAnalysisWindow = [];
+
 %% Main Loop    
     %{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
     for datasetList = {'E20200316'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
