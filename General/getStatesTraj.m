@@ -134,9 +134,16 @@ function [statesTraj,statesTimestamps] = getStatesTraj(trialData,trialInclStates
                     statesTraj(:,rmSort) = [];
                 end
 
-            %Didn't end up using unsmoothed binned FRs for this study
-            case 'binFR'
-
+            %For analyses that use one large bin per trial
+            case 'singleBinFR'
+                %Get appropriate time window of binnedSpikes
+                timestamps = startTime:endTime;
+                trialTimeMask = trialTime>=timestamps(1) & trialTime<=timestamps(end);
+                binnedSpikes = trialData.spikes(trialTimeMask,:);
+                %Sum, divide by time interval to convert to Hz
+                statesTraj = sum(binnedSpikes)/((endTime-startTime+1)/1000);
+                statesTimestamps = startTime + ((endTime-startTime)/2);
+                
             %For non-neural data streams, snip to appropriate time window, then downsample
             case{'marker','markerPos','markerVel','force','forceCursor','bciCursorTraj','bciCursorPos','bciCursorVel'}
                 if strcmpi(dataType,'force')

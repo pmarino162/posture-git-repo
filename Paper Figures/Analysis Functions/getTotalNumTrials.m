@@ -6,6 +6,8 @@ function [totalNumTrials] = getTotalNumTrials(trajStruct,varargin)
             numTraj = size(trajStruct(i).allZSmoothFR,2);
         elseif isfield(trajStruct,'allSmoothFR')
             numTraj = size(trajStruct(i).allSmoothFR,2);
+        elseif isfield(trajStruct,'allSingleBinFR')
+            numTraj = size(trajStruct(i).allSingleBinFR,2);
         end
        totalNumTrials = totalNumTrials + numTraj;
     end

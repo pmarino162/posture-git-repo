@@ -8,11 +8,11 @@ clear; clc; clf; close all
 %% Set parameters
     refPosture = 1; %Use posture 1 for all task x animals
     alpha = 0.05; %For 2-way ANOVA
-    numBootReps = 10000; %Number of bootstrap resamples when assessing significance of delPD
+    numBootReps = 100; %Number of bootstrap resamples when assessing significance of delPD
     
 %% Main loop
     %TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
-    TCDatasetList = {'N20171215'};
+    TCDatasetList = {'E20200316'};
     
     for datasetList = TCDatasetList        
         %% Get trajStruct
@@ -21,7 +21,7 @@ clear; clc; clf; close all
         [Data,zScoreParams] = loadData(dataset);           
         %Get trajStruct - adjust for no z-score here
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
-        trajFields = {'smoothFR'}; %Don't z-score FRs
+        trajFields = {'singleBinFR'}; %Use one big bin - no smoothing or z-scoring
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);      
         %Keep only postures with all targets
         [postureList,~,targetList,~,~,~] = getTrajStructDimensions(trajStruct);
@@ -43,10 +43,12 @@ clear; clc; clf; close all
         for i = 1:size(trajStruct,2)
            target = trajStruct(i).target;
            posture = trajStruct(i).posture;
-           numCondTrials = size(trajStruct(i).allSmoothFR,2);
+           numCondTrials = size(trajStruct(i).allSingleBinFR,2);
+%            numCondTrials = size(trajStruct(i).allSmoothFR,2);
            gT(trialInd:trialInd+numCondTrials-1) = ones(1,numCondTrials)*target;
            gP(trialInd:trialInd+numCondTrials-1) = ones(1,numCondTrials)*posture;
-           FR(trialInd:trialInd+numCondTrials-1,:) = vertcat(trajStruct(i).allSmoothFR.trialAvg);
+           FR(trialInd:trialInd+numCondTrials-1,:) = vertcat(trajStruct(i).allSingleBinFR.traj);
+           %FR(trialInd:trialInd+numCondTrials-1,:) = vertcat(trajStruct(i).allSmoothFR.trialAvg);
            trialInd = trialInd + numCondTrials;
         end
         group = {gT,gP}; %Grouping variable 
@@ -128,8 +130,9 @@ clear; clc; clf; close all
             for target = targetList
                 if  any([tempTrajStruct.target]==target)
                     targetData = tempTrajStruct([tempTrajStruct.target]==target);
-                    for trial = 1:numel(targetData.allSmoothFR)
-                        trialFR = targetData.allSmoothFR(trial).trialAvg;
+                    for trial = 1:numel(targetData.allSingleBinFR)
+                        %trialFR = targetData.allSmoothFR(trial).trialAvg;
+                        trialFR = targetData.allSingleBinFR(trial).traj;
                         for channel = 1:numChannels
                             tuningData(channel).allData(trial,targetInd) = trialFR(channel);
                         end

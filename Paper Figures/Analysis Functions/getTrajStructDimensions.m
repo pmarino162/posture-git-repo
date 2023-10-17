@@ -10,6 +10,8 @@ function [postureList,numPostures,targetList,numTargets,numChannels,numCondition
         numChannels = size(trajStruct(1).avgZSmoothFR.traj,2);
     elseif isfield(trajStruct,'avgSmoothFR')
         numChannels = size(trajStruct(1).avgSmoothFR.traj,2);
+    elseif isfield(trajStruct,'avgSingleBinFR')
+        numChannels = size(trajStruct(1).avgSingleBinFR.traj,2);
     end
     numConditions = size(trajStruct,2);
 

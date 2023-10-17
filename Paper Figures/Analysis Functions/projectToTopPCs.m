@@ -8,9 +8,9 @@ function [trajStruct] = projectToTopPCs(allTraj,trajStruct,numPCsToKeep)
         [allPCs,~,~,~,~,~] = pca(allTraj);
         
         for i = 1:size(trajStruct,2)
-           trajStruct(i).avgZSmoothFR.traj = trajStruct(i).avgZSmoothFR.traj*allPCs(:,1:numPCsToKeep); 
+           trajStruct(i).avgPCA.traj = trajStruct(i).avgZSmoothFR.traj*allPCs(:,1:numPCsToKeep); 
            for j = 1:size(trajStruct(i).allZSmoothFR,2)
-                trajStruct(i).allZSmoothFR(j).traj = trajStruct(i).allZSmoothFR(j).traj*allPCs(:,1:numPCsToKeep); 
+                trajStruct(i).allPCA(j).traj = trajStruct(i).allZSmoothFR(j).traj*allPCs(:,1:numPCsToKeep); 
            end
         end
         

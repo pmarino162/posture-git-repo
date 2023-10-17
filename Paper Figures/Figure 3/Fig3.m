@@ -13,20 +13,18 @@ clear; clc; clf; close all
    numRandReps = 10000; %Num random subspace draws per bootstrap
    cutoffNumTraj = 10; %Num trials that must be present in a condition to keep it for analysis 
    
-%% Setup resultStruct
-    resultStruct = struct('animal',[],'dataset',[],'vPP',[],'vPT',[],'vTT',[],'vTP',[],'vPR',[],'vTR',[],'pAngle',[],'pAngleNull',[]);
-    structInd = 1;
-    
-%% Run loop for each dataset    
+%% Datasets to include in analysis 
     reachDatasetList = {'E20210706','E20210707','E20210708',...
         'N20190222','N20190226','N20190227','N20190228','N20190307'...
-        'R20200221','R20200222'};
-    
-    bciDatasetList = {'E20200316','E20200317','E20200318','E20200319','N20171215','N20180221','R20201020','R20201021'};
-           %NEED TO FIX 3/18 %{'E20200316','E20200317','E20200318','E20200319','N20171215','N20180221','R20201020','R20201021'};
+        'R20200221','R20200222'};    
+    bciDatasetList = {'E20200316','E20200317','E20200318','E20200319','N20171215','N20180221','R20201020','R20201021'};         
     isoDatasetList = {'E20200116','E20200117','E20200120'};
     
+%% Main loop   
+    resultStruct = struct('animal',[],'dataset',[],'vPP',[],'vPT',[],'vTT',[],'vTP',[],'vPR',[],'vTR',[],'pAngle',[],'pAngleNull',[]);
+    structInd = 1;
     for datasetList = {'E20200316'}
+        %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
@@ -43,32 +41,30 @@ clear; clc; clf; close all
         %Project all data down to top PCs
         [allTraj] = collectAllAvgTraj(trajStruct);
         [trajStruct] = projectToTopPCs(allTraj,trajStruct,numPCsToKeep);
-
-        
-        
-        %Preallocate 
-        vPP = NaN(1,2*numBootReps); vPT = NaN(1,2*numBootReps); vPR = NaN(1,2*numBootReps);         
-        vTT = NaN(1,2*numBootReps); vTP = NaN(1,2*numBootReps); vTR = NaN(1,2*numBootReps);
-        pAngle = NaN(1,2*numBootReps);
  
-        %Split data into two groups for cross-validation
+        %% Split data into two groups for cross-validation
         [minNumCondTrials] = getMinNumCondTrials(trajStruct);
         [trajStruct1,trajStruct2] = splitDataforCV(trajStruct,minNumCondTrials,binWidth);  
         
-        %Fit P and T spaces for each group
+        %% Fit P and T spaces for each group
         [minNumTimestamps] = getMinNumTimestamps(trajStruct);    
-        [pSig1,tSig1] = getPandTsig(trajStruct1,minNumTimestamps);
+        [pSig1,tSig1] = getPandTsig(trajStruct1,'avgPCA',minNumTimestamps,postureList,numPostures,targetList,numTargets);
             pSig1Reshape = reshape(squeeze(pSig1),[numPostures*minNumTimestamps,numPCsToKeep]);
             tSig1Reshape = reshape(squeeze(tSig1),[numTargets*minNumTimestamps,numPCsToKeep]);
             [pDimsGroup1,~,~,~,explainedP,pSigMu] = pca(pSig1Reshape); 
             [tDimsGroup1,~,~,~,explainedT,tSigMu] = pca(tSig1Reshape); 
-        [pSig2,tSig2] = getPandTsig(trajStruct2,minNumTimestamps);
+        [pSig2,tSig2] = getPandTsig(trajStruct2,'avgPCA',minNumTimestamps,postureList,numPostures,targetList,numTargets);
             pSig2Reshape = reshape(squeeze(pSig2),[numPostures*minNumTimestamps,numPCsToKeep]);
             tSig2Reshape = reshape(squeeze(tSig2),[numTargets*minNumTimestamps,numPCsToKeep]);
             [pDimsGroup2,~,~,~,~,~] = pca(pSig2Reshape); 
             [tDimsGroup2,~,~,~,~,~] = pca(tSig2Reshape); 
             
-        %For each group, bootstrap resample, get P & T sig, then project into other group's space
+        %% For each group, bootstrap resample, get P & T sig, then project into other group's space
+        % Preallocate 
+        vPP = NaN(1,2*numBootReps); vPT = NaN(1,2*numBootReps); vPR = NaN(1,2*numBootReps);         
+        vTT = NaN(1,2*numBootReps); vTP = NaN(1,2*numBootReps); vTR = NaN(1,2*numBootReps);
+        pAngle = NaN(1,2*numBootReps);
+        %Loop
         curInd = 1; %Index of projection vectors (e.g., vPP)
         for projGroup = 1:2
             if projGroup == 1
@@ -85,13 +81,13 @@ clear; clc; clf; close all
                 %Subsample with replacement
                 sampStruct = projStruct;
                 for j = 1:size(sampStruct,2)
-                    numTraj = size(projStruct(j).allZSmoothFR,2);
+                    numTraj = size(projStruct(j).allPCA,2);
                     sampInd = randsample(numTraj,numTraj,true); %True => with replacement
-                    sampStruct(j).allSmoothFR = projStruct(j).allZSmoothFR(sampInd);
-                    [sampStruct(j).avgZSmoothFR.traj,sampStruct(j).avgZSmoothFR.timestamps] = getAvgTraj(sampStruct(j).allZSmoothFR,binWidth);               
+                    sampStruct(j).allPCA = projStruct(j).allPCA(sampInd);
+                    [sampStruct(j).avgPCA.traj,sampStruct(j).avgPCA.timestamps] = getAvgTraj(sampStruct(j).allPCA,binWidth);               
                 end
                 %Get P and T signals
-                [pSig,tSig] = getPandTsig(sampStruct,minNumTimestamps);
+                [pSig,tSig] = getPandTsig(sampStruct,'avgPCA',minNumTimestamps,postureList,numPostures,targetList,numTargets);
                 pSigReshape = reshape(squeeze(pSig),[numPostures*minNumTimestamps,numPCsToKeep]);
                 tSigReshape = reshape(squeeze(tSig),[numTargets*minNumTimestamps,numPCsToKeep]);
                 %Compute P and T projections
@@ -105,7 +101,7 @@ clear; clc; clf; close all
                 vTP(curInd) = trace(DP'*CT*DP)./trace(CT);
                 
                 %Get pAngle
-               % allPAngle = rad2deg(subspacea(DP,DT));
+                %allPAngle = rad2deg(subspacea(DP,DT));
                 %pAngle(curInd) = allPAngle(1);
                 
                 %Get pAngleNull
@@ -139,12 +135,11 @@ clear; clc; clf; close all
         resultStruct(structInd).dataset = dataset; resultStruct(structInd).animal = dataset(1);
         resultStruct(structInd).vPP = vPP; resultStruct(structInd).vPT = vPT; resultStruct(structInd).vPR = vPR;
         resultStruct(structInd).vTT = vTT; resultStruct(structInd).vTP = vTP; resultStruct(structInd).vTR = vTR;
-      %  resultStruct(structInd).pAngle = pAngle;
-%        resultStruct(structInd).pAngleNull = pAngleNull;
+        %resultStruct(structInd).pAngle = pAngle;
+        %resultStruct(structInd).pAngleNull = pAngleNull;
         structInd = structInd + 1;
         
     end
-
     
 %% Get monkey list 
     %Across datasets
@@ -293,33 +288,3 @@ clear; clc; clf; close all
     xticks([]);
     ylabel('Variance Explained %');
     xlabel('Subspace');
-
-%% Local functions
-    function [pSig,tSig] = getPandTsig(trajStruct,minNumTimestamps)
-        %Get posture & target lists
-        postureList = unique([trajStruct.posture]); numPostures = size(postureList,2);
-        targetList = unique([trajStruct.target]); numTargets = size(targetList,2);
-        numPCsToKeep = size(trajStruct(1).avgZSmoothFR.traj,2); 
-
-        %Form X
-        X = NaN(minNumTimestamps,numTargets,numPostures,numPCsToKeep);
-        postureInd = 1;
-        for posture = postureList
-            targetInd = 1;
-            for target = targetList
-                traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgZSmoothFR.traj;
-                X(:,targetInd,postureInd,:) = traj(1:minNumTimestamps,:); 
-                targetInd = targetInd + 1;
-            end
-            postureInd = postureInd+1;
-        end
-
-        % Do marginalizations of X (Xdims: 1=time, 2=target, 3=posture, 4=channel)
-        %Condition-invariant
-        CIMargOffset = mean(X,[1 2 3],'omitnan');
-        CIMargTraj = mean(X,[2 3],'omitnan') - CIMargOffset;
-        %Posture and Target Traj
-        tSig = mean(X,[3],'omitnan') - CIMargTraj  - CIMargOffset;
-        pSig = mean(X,[2],'omitnan') - CIMargTraj - CIMargOffset;
-    end
-
