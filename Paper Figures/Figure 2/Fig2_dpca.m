@@ -5,11 +5,17 @@ clear; clc; clf; close all
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 2';
     set(0, 'DefaultFigureRenderer', 'painters');
     
+% To make nicest possible projection, use E20200316; go from Step 1 to Step
+% 2; then choose first 8 timestamps from each condition avg. No
+% regularization. Could try removing really short trials to aid in
+% regularization? 
+
 %% Set parameters
-    bciAnalysisWindow = [];
+    bciAnalysisWindow = [50,250];
     isoAnalysisWindow = [];
     reachAnalysisWindow = [];
-
+    numDPCs = 10;
+    
 %% Main Loop    
     %{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
     for datasetList = {'E20200316'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
@@ -21,7 +27,7 @@ clear; clc; clf; close all
         switch dataset
             %BCI
             case {'E20200316','E20200317','E20200318'}
-                %trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Step 2','first',0}};
+                trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Step 2','first',0}};
             case {'N20171215','N20180221'}
                 %trialInclStates(1).inclStates = {{'state','Cursor Freeze','first',0},{'state','Target Hold','first',0}};
             case {'R20201020','R20201021'}
@@ -50,6 +56,7 @@ clear; clc; clf; close all
         
         %% Get traj struct dimensions
         [minNumTimestamps] = getMinNumTimestamps(trajStruct); 
+        %minNumTimestamps = 8;
         [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct); 
         
         %% Setup colormap (based on number of postures)
@@ -66,36 +73,109 @@ clear; clc; clf; close all
                 pcmap = vertcat(pcmap(2,:),pcmap(1,:));
         end
         
-        %Form X
-        [X] = getX(trajStruct,minNumTimestamps,postureList,numPostures,targetList,numTargets,numChannels);   
+        %% Form X and Xfull
+        [X] = getX(trajStruct,'avgZSmoothFR',minNumTimestamps,postureList,numPostures,targetList,numTargets);    
+        [Xfull] = getXFull(trajStruct,'allZSmoothFR',minNumTimestamps,postureList,numPostures,targetList,numTargets);    
         
-        %Do dPCA
+        %Permute for use w dPCA (to follow along w examples)
         Xdpca = permute(X,[4,3,2,1]);
-
+        XdpcaFull = permute(Xfull,[4,3,2,1,5]);
+        
+        %% dPCA Parameters
+        
         combinedParams = {{1, [1 3]}, {2, [2 3]}, {3}, {[1 2], [1 2 3]}};
         margNames = {'P', 'T', 'CI', 'PTI'};
         margColours = [23 100 171; 187 20 25; 150 150 150; 114 97 171]/256;
-
         N = numChannels; P = numPostures; T = numTargets;
-        timePts = minNumTimestamps;
         time = trajStruct(1).avgZSmoothFR.timestamps(1:minNumTimestamps);
         timeEvents = [];
 
-        [W,V,whichMarg] = dpca(Xdpca, 10, ...
-            'combinedParams', combinedParams);
+        %% Regularization 
+        %Set up 'numOfTrials' for use with dpca_optimizeLambda
+        numOfTrials = zeros(size(Xdpca,1),size(Xdpca,2),size(Xdpca,3));
+        for i = 1:size(Xdpca,1)
+            for j = 1:size(Xdpca,2)
+                for k = 1:size(Xdpca,3)
+                    numOfTrials(i,j,k) = sum(~isnan(XdpcaFull(i,j,k,1,:)));
+                end
+            end
+        end
+        
+        %Compute optimal lambda
+        optimalLambda = dpca_optimizeLambda(Xdpca, XdpcaFull, numOfTrials, ...
+            'combinedParams', combinedParams, ...
+            'simultaneous', true, ...
+            'numRep', 10, ...  % increase this number to ~10 for better accuracy
+            'filename', 'tmp_optimalLambdas.mat');
+
+        %Compute Cnoise
+        Cnoise = dpca_getNoiseCovariance(Xdpca, ...
+            XdpcaFull, numOfTrials, 'simultaneous', true);
+
+        %% Compute dPCs
+        [W,V,whichMarg] = dpca(Xdpca, numDPCs, ...
+            'combinedParams', combinedParams, ...
+            'lambda', optimalLambda, ...
+            'Cnoise', Cnoise);
+        
+               
+%         [W,V,whichMarg] = dpca(Xdpca, numDPCs, ...
+%             'combinedParams', combinedParams);
 
         explVar = dpca_explainedVariance(Xdpca, W, V, ...
             'combinedParams', combinedParams);
 
-%         dpca_plot(Xdpca, W, V, @dpca_plot_default, ...
-%             'explainedVar', explVar, ...
-%             'marginalizationNames', margNames, ...
-%             'marginalizationColours', margColours, ...
-%             'whichMarg', whichMarg,                 ...
-%             'time', time,                        ...
-%             'timeEvents', timeEvents,               ...
-%             'timeMarginalization', 3, ...
-%             'legendSubplot', 1);
+%         %Compute variance manually
+%         manualExplVar = zeros(1,10);
+%         totalVar = 0;
+%         totalSS = 0;
+%         for i = 1:size(X,1)
+%             for j = 1:size(X,2)
+%                 for k = 1:size(X,3)
+%                     for l = 1:size(X,4)
+%                         totalSS = X(i,j,k,l).^2 + totalSS;
+%                     end
+%                 end
+%             end
+%         end
+%         totalVar = totalSS;
+%         
+%         %Z = W'*Xdpca;
+%          % explVar.componentVar(i) = 100 - sum(sum((X - V(:,i)*Z(i,:)).^2)) / explVar.totalVar * 100;  
+%        
+%        for comp = 1:10
+%             remainMat = X;
+%             for j = 1:size(X,2)
+%                 for k = 1:size(X,3)
+%                     remainMat(:,j,k,:) = squeeze(remainMat(:,j,k,:)) - squeeze(X(:,j,k,:))*W(:,comp)*V(:,comp)';
+%                 end
+%             end
+%             totalSS = 0;
+%             for i = 1:size(X,1)
+%                 for j = 1:size(X,2)
+%                     for k = 1:size(X,3)
+%                         for l = 1:size(X,4)
+%                             totalSS = remainMat(i,j,k,l).^2 + totalSS;
+%                         end
+%                     end
+%                 end
+%             end
+%             remainVar = totalSS;
+%             
+%             manualExplVar(comp) = (totalVar-remainVar)/totalVar;
+%         end
+        
+        
+        
+        dpca_plot(Xdpca, W, V, @dpca_plot_default, ...
+            'explainedVar', explVar, ...
+            'marginalizationNames', margNames, ...
+            'marginalizationColours', margColours, ...
+            'whichMarg', whichMarg,                 ...
+            'time', time,                        ...
+            'timeEvents', timeEvents,               ...
+            'timeMarginalization', 3, ...
+            'legendSubplot', 1);
 
         % Plot Marginal dims
         postureMargID = find(strcmp(margNames,'P'));
