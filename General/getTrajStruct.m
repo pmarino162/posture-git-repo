@@ -41,7 +41,6 @@ function [trajStruct] = getTrajStruct(Data,condFields,trajFields,trialInclStates
     %Add all trials
     structInd = 1;
     for condInd = 1:numCond
-        condInd
         %Fill in condition information in trajStruct
         cond = condList(condInd,:);
         for condField = 1:numCondFields
@@ -70,6 +69,7 @@ function [trajStruct] = getTrajStruct(Data,condFields,trajFields,trialInclStates
     %Take condition averages, store
     structInd = 1;
     for condInd = 1:numCond
+        condInd
         for trajField = 1:numTrajFields
             trajFieldName = trajFields{trajField};
             upperTrajFieldName = [upper(trajFieldName(1)),trajFieldName(2:end)];

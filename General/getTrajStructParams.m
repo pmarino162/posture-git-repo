@@ -51,6 +51,15 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
                 trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
                 task = 'reach';
+            %Multiple tasks paradigm
+            case {'E20200314'}         
+                condFields = {{'task','conditionData','taskID'},{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
+                trialInclStates(1).trialName = {'GridTask_BC_ForceBar'};
+                    trialInclStates(1).inclStates = {{'state','Step 1 Freeze','first',50},{'state','Step 1 Freeze','first',250}};
+                trialInclStates(2).trialName = {'HC_CenterOut_ForceBar_20200314'};
+                    trialInclStates(2).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
+                trialInclStates(3).trialName = {'IsometricForce_1D'};
+                    trialInclStates(3).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
         end 
 
 

@@ -22,7 +22,7 @@ clear; clc; clf; close all
         %Get trajStruct - adjust for no z-score here
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
         trajFields = {'singleBinFR'}; %Use one big bin - no smoothing or z-scoring
-        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);      
+        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);      
         %Keep only postures with all targets
         [postureList,~,targetList,~,~,~] = getTrajStructDimensions(trajStruct);
         [trajStruct] = keepOnlyPosturesWithAllTargets(trajStruct,postureList,targetList);
