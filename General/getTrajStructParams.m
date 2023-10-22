@@ -33,7 +33,7 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
             case {'E20200116','E20200117','E20200120'}
                 trialInclStates(1).trialName = {'IsometricForce_1D'};   
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
-                trialInclStates(1).inclStates = {{'state','Target','first',0},{'state','Target','first',200}};
+                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
                 task = 'iso';
             %Reach
             case {'E20210706','E20210707','E20210708','E20210709','E20210710'}

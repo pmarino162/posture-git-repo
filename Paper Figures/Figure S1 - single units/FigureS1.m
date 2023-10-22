@@ -8,11 +8,11 @@ clear; clc; clf; close all
 %% Set parameters
     refPosture = 1; %Use posture 1 for all task x animals
     alpha = 0.05; %For 2-way ANOVA
-    numBootReps = 100; %Number of bootstrap resamples when assessing significance of delPD
+    numBootReps = 1000; %Number of bootstrap resamples when assessing significance of delPD
     
 %% Main loop
     %TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
-    TCDatasetList = {'E20200316'};
+    TCDatasetList = {'R20201020'};
     
     for datasetList = TCDatasetList        
         %% Get trajStruct
@@ -299,6 +299,7 @@ clear; clc; clf; close all
         set(gca,'fontname','arial'); set(gca,'fontsize',fs)
         if saveFig
             saveas(gcf,fullfile(saveDir,dataset,'ChangePD_Labelled.fig'));
+            saveas(gcf,fullfile(saveDir,dataset,'ChangePD_Labelled.svg'));
         end
 
         %Plot select TC's
@@ -315,7 +316,7 @@ clear; clc; clf; close all
              case {'N20190226'}
                  chList = [14,45,55];
              case {'R20200221'}
-                 chList = [75,66];
+                 chList = [97,132];
          end
          fs = 16;
          for channel = chList

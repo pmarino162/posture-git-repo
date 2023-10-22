@@ -8,17 +8,18 @@ clear; clc; clf; close all
 % To make nicest possible projection, use E20200316; go from Step 1 to Step
 % 2; then choose first 8 timestamps from each condition avg. No
 % regularization. Could try removing really short trials to aid in
-% regularization? 
+% regularization? CURRENTLY YOU'RE GETTING PART OF STEP 2 FOR REALLY SHORT
+% TRIALS
 
 %% Set parameters
     bciAnalysisWindow = [50,250];
     isoAnalysisWindow = [];
-    reachAnalysisWindow = [];
+    reachAnalysisWindow = [-200,300];
     numDPCs = 10;
     
 %% Main Loop    
     %{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
-    for datasetList = {'E20200316'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
+    for datasetList = {'E20210706'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
         %% Load Data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
@@ -41,10 +42,13 @@ clear; clc; clf; close all
                 %trialInclStates(1).inclStates = {{'state','Target','first',0},{'state','Target','first',500}};
             %Reaching
             case 'E20210706'
+                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
             case{'N20190222','N20190226','N20190227','N20190228','N20190307'}
+                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
             case{'R20200221','R20200222'}
+                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
         end     
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);
@@ -199,8 +203,10 @@ clear; clc; clf; close all
         for i = 1:size(trajStruct,2)
             %Add average traces to trajStruct
             trajStruct(i).PTOrth.traj = trajStruct(i).avgZSmoothFR.traj*PTOrth;
+            trajStruct(i).dPCA.traj = trajStruct(i).avgZSmoothFR.traj*W;
             %Get VAF
             trajStruct(i).PTOrth.VAF =  [explVar.componentVar(postureDims(1)),explVar.componentVar(targetDims(1)),explVar.componentVar(targetDims(2))];
+            trajStruct(i).dPCA.VAF = explVar.componentVar;
             %100.*(diag(cov(allTraj*PTOrth))')./totalVar;
         end
 
@@ -235,5 +241,58 @@ clear; clc; clf; close all
         if saveFig
             saveas(gcf,fullfile(saveDir,[dataset,'_PTOrth.fig']));
         end
+        
+        
+        %Plot vs time
+        figure 
+        timePts = 1:minNumTimestamps;
+        for posture = postureList
+            for target = targetList
+                if any([trajStruct.posture]==posture & [trajStruct.target]==target)
+                    traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).dPCA.traj(timePts,:); 
+                    time = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgZSmoothFR.timestamps(timePts); 
+                    for dim = 1:10
+                       subplot(2,5,dim)
+                       plot(time,traj(:,dim),'Color',pcmap(posture,:),'LineWidth',2);
+                       hold on;                        
+                    end
+                end
+            end
+        end
+          
+        %Format
+        maxYRange = 0;
+        for dim = 1:10
+            subplot(2,5,dim)
+            ax = gca;
+            ylimits = ax.YLim;
+            yRange = ylimits(2)-ylimits(1);
+            if yRange > maxYRange
+                maxYRange = yRange;
+            end
+        end
+        for dim = 1:10
+            VAF = round(trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).dPCA.VAF);
+            subplot(2,5,dim);
+            ax = gca;
+            ylimits = ax.YLim;
+            yMid = ylimits(1) + 0.5*(ylimits(2)-ylimits(1));
+            ylim([yMid-maxYRange/2 yMid+maxYRange/2])
+            ylabel(['dPC ',num2str(dim),' (',num2str(VAF(dim)),'%)'])
+            yticks([min(ax.YTick) max(ax.YTick)]);
+            ax.TickDir = 'out';
+            if dim < 4
+                xticks([])
+            else
+                xticks([-200 0 300]);
+            end
+            if dim == 5
+                %xlabel('time (ms)')
+            end
+            set(gca,'fontname','arial')
+            set(gca,'fontsize',fs)
+        end           
+
+        
         %clf; close all
     end
