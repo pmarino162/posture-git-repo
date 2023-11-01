@@ -15,7 +15,7 @@ function [pcmap,tcmap,rainbow] = getColorMaps(numPostures)
         case 3
             pcmap = pcmap([1,3,5],:);
         %No case for 4, because postures are labeled 1,2,4,5 in that exp
-        case 7
+        case {7,6}
             pcmap = vertcat(pcmap,rainbow(4:5,:));
     end
     

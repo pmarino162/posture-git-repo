@@ -72,8 +72,7 @@ function [trajStruct] = getTrajStruct(Data,condFields,trajFields,trialInclStates
         condInd
         for trajField = 1:numTrajFields
             trajFieldName = trajFields{trajField};
-            upperTrajFieldName = [upper(trajFieldName(1)),trajFieldName(2:end)];
-            [avgTraj,timestamps,CI95] = getAvgTraj(trajStruct(structInd).(['all',upperTrajFieldName]),binWidth);
+            [avgTraj,timestamps,CI95] = getAvgTraj(trajStruct(structInd),trajFieldName,binWidth);
             trajStruct(structInd).(['avg',upperTrajFieldName]).traj = avgTraj;
             trajStruct(structInd).(['avg',upperTrajFieldName]).timestamps = timestamps;
             trajStruct(structInd).(['avg',upperTrajFieldName]).CI95 = CI95;

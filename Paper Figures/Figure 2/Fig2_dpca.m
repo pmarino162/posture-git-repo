@@ -19,7 +19,7 @@ clear; clc; clf; close all
     
 %% Main Loop    
     %{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
-    for datasetList = {'E20210706'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
+    for datasetList = {'E20200316'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
         %% Load Data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
@@ -28,7 +28,7 @@ clear; clc; clf; close all
         switch dataset
             %BCI
             case {'E20200316','E20200317','E20200318'}
-                trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Step 2','first',0}};
+                %trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Step 2','first',0}};
             case {'N20171215','N20180221'}
                 %trialInclStates(1).inclStates = {{'state','Cursor Freeze','first',0},{'state','Target Hold','first',0}};
             case {'R20201020','R20201021'}
@@ -65,18 +65,18 @@ clear; clc; clf; close all
         
         %% Setup colormap (based on number of postures)
         [pcmap,tcmap,rainbow] = getColorMaps(numPostures);  
-        switch dataset
-            case {'E20200316'}
-                pcmap = flip(pcmap);
-            case {'N20171215'}     
-                pcmap = vertcat(pcmap(3,:),pcmap(1,:),pcmap(5,:));
-            case {'E20210901'}
-                pcmap = vertcat(pcmap(1,:),pcmap(3,:),pcmap(3,:),pcmap(5,:),pcmap(4,:));
-                pcmap = vertcat(pcmap(4,:),pcmap(5,:),pcmap(5,:),pcmap(1,:),pcmap(3,:));
-            case {'R20201020'}
-                pcmap = vertcat(pcmap(2,:),pcmap(1,:));
-        end
-        
+%         switch dataset
+%             case {'E20200316'}
+%                 pcmap = flip(pcmap);
+%             case {'N20171215'}     
+%                 pcmap = vertcat(pcmap(3,:),pcmap(1,:),pcmap(5,:));
+%             case {'E20210901'}
+%                 pcmap = vertcat(pcmap(1,:),pcmap(3,:),pcmap(3,:),pcmap(5,:),pcmap(4,:));
+%                 pcmap = vertcat(pcmap(4,:),pcmap(5,:),pcmap(5,:),pcmap(1,:),pcmap(3,:));
+%             case {'R20201020'}
+%                 pcmap = vertcat(pcmap(2,:),pcmap(1,:));
+%         end
+%         
         %% Form X and Xfull
         [X] = getX(trajStruct,'avgZSmoothFR',minNumTimestamps,postureList,numPostures,targetList,numTargets);    
         [Xfull] = getXFull(trajStruct,'allZSmoothFR',minNumTimestamps,postureList,numPostures,targetList,numTargets);    

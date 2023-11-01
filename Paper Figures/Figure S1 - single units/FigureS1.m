@@ -1,27 +1,54 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
+    saveFig = true;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S1 - single units';
     set(0, 'DefaultFigureRenderer', 'painters');
     
 %% Set parameters
     refPosture = 1; %Use posture 1 for all task x animals
-    alpha = 0.05; %For 2-way ANOVA
-    numBootReps = 1000; %Number of bootstrap resamples when assessing significance of delPD
+    alpha = 0.05; %Significance level for all analyses
+    numBootReps = 10000; %Number of bootstrap resamples when assessing significance of delPD
     
 %% Main loop
-    %TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
-    TCDatasetList = {'R20201020'};
+    TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
+    %E20200316 1=I30 - 5=E30
+    %N20171215 1=N00, 2=I45, 3=A90
+    %R20201020 1=N00, 2=A90
+    %R20201021 1=N00, 2=I45
+    %E20210706
+    %N20190226 1=(36,-60), 2=(-66,9)
+    %R20200211 1=(), 2=()
+    
+    %TCDatasetList = {'R20200221'};
     
     for datasetList = TCDatasetList        
         %% Get trajStruct
         %Load data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);           
-        %Get trajStruct - adjust for no z-score here
-        [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
+        %Get trajStruct
+        [condFields,~,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
         trajFields = {'singleBinFR'}; %Use one big bin - no smoothing or z-scoring
+        switch dataset
+            %BCI
+            case {'E20200316','E20200317','E20200318'}
+                trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Step 2','first',0}};
+            case {'N20171215','N20180221'}
+                trialInclStates(1).inclStates = {{'state','Cursor Release','first',0},{'state','Target Hold','first',0}};
+            case {'R20201020','R20201021'}
+                trialInclStates(1).inclStates = {{'state','React','first',0},{'state','Hold','first',0}};
+            %Iso
+            case 'E20200116'
+                trialInclStates(1).inclStates = {{'state','Target','first',0},{'state','Target Hold','first',0}};
+            %Reaching
+            case 'E20210706'
+                trialInclStates(1).inclStates = {{'state','Target Acquire','first',0},{'state','Target Hold','first',0}};
+            case{'N20190222','N20190226','N20190227','N20190228','N20190307'}
+                trialInclStates(1).inclStates = {{'state','Reach','first',0},{'state','Target Hold','first',0}};
+            case{'R20200221','R20200222'}
+                trialInclStates(1).inclStates = {{'state','Reach','first',0},{'state','Target Hold','first',0}};
+        end
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);      
         %Keep only postures with all targets
         [postureList,~,targetList,~,~,~] = getTrajStructDimensions(trajStruct);
@@ -44,11 +71,9 @@ clear; clc; clf; close all
            target = trajStruct(i).target;
            posture = trajStruct(i).posture;
            numCondTrials = size(trajStruct(i).allSingleBinFR,2);
-%            numCondTrials = size(trajStruct(i).allSmoothFR,2);
            gT(trialInd:trialInd+numCondTrials-1) = ones(1,numCondTrials)*target;
            gP(trialInd:trialInd+numCondTrials-1) = ones(1,numCondTrials)*posture;
            FR(trialInd:trialInd+numCondTrials-1,:) = vertcat(trajStruct(i).allSingleBinFR.traj);
-           %FR(trialInd:trialInd+numCondTrials-1,:) = vertcat(trajStruct(i).allSmoothFR.trialAvg);
            trialInd = trialInd + numCondTrials;
         end
         group = {gT,gP}; %Grouping variable 
@@ -131,7 +156,6 @@ clear; clc; clf; close all
                 if  any([tempTrajStruct.target]==target)
                     targetData = tempTrajStruct([tempTrajStruct.target]==target);
                     for trial = 1:numel(targetData.allSingleBinFR)
-                        %trialFR = targetData.allSmoothFR(trial).trialAvg;
                         trialFR = targetData.allSingleBinFR(trial).traj;
                         for channel = 1:numChannels
                             tuningData(channel).allData(trial,targetInd) = trialFR(channel);
@@ -169,6 +193,7 @@ clear; clc; clf; close all
         acrossPostureStruct = struct('compPosture',[],'delPD',[],'absDelPD',[],'chList',[],'sigPDChange',[]);
         structInd = 1;
         for compPosture = postureList(2:end)
+            compPosture
             %Get list of ch that is sigTuned in ref & comparison postures
             chList = [];
             for channel = 1:numChannels
@@ -184,7 +209,6 @@ clear; clc; clf; close all
             delPD = NaN(1,length(chList));
             sigPDChange = false(1,length(chList));          
             for i = 1:length(chList)
-                i
                channel = chList(i);
                %Get PD change 
                refPosturePD = postureTuningData([postureTuningData.posture]==refPosture).tuningData(channel).PD;
@@ -233,22 +257,19 @@ clear; clc; clf; close all
 
         %% Make violin plots         
         %Plot Change PD violins
-        violinMat = []; absViolinMat = [];
+        violinMat = []; 
         i = 1;
         for compPosture = postureList(2:end)
             delPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).delPD;
                 violinMat(i:i+length(delPD)-1,1) = compPosture*ones(length(delPD),1);
                 violinMat(i:i+length(delPD)-1,2) = delPD';
-            absDelPD = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).absDelPD;
-                absViolinMat(i:i+length(absDelPD)-1,1) = compPosture*ones(length(absDelPD),1);
-                absViolinMat(i:i+length(absDelPD)-1,2) = absDelPD';
             i = i + length(delPD);
         end       
         plotPostures = unique(violinMat(:,1));
         fs = 20;      
         
         f= figure; f.Position = [200 200 100 100]; hold on;
-        violinplot(violinMat(:,2),violinMat(:,1),'ViolinColor',pcmap(plotPostures,:),'ShowData',false);
+        violinplot(violinMat(:,2),violinMat(:,1),'ViolinColor',pcmap(plotPostures,:),'ShowData',false,'ShowBox',false,'ShowMedian',false,'ShowWhiskers',false);
         scatterScale = 0.3;
         compPostureInd = 1;
         for compPosture = postureList(2:end)
@@ -256,13 +277,11 @@ clear; clc; clf; close all
            sigPDChange = acrossPostureStruct([acrossPostureStruct.compPosture]==compPosture).sigPDChange;
            sigDelPD = delPD(sigPDChange);
            insigDelPD = delPD(~sigPDChange);
-           plot(compPostureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',1,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',pcmap(compPosture,:));
-           plot(compPostureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'.','MarkerSize',6,'Color',pcmap(compPosture,:));
+           plot(compPostureInd+scatterScale*rand(1,length(insigDelPD))-scatterScale/2,insigDelPD,'o','MarkerSize',1,'MarkerEdgeColor',[.25 .25 .25],'LineWidth',0.001);
+           plot(compPostureInd+scatterScale*rand(1,length(sigDelPD))-scatterScale/2,sigDelPD,'o','MarkerSize',2,'MarkerFaceColor',pcmap(compPosture,:),'MarkerEdgeColor',[0 0 0],'LineWidth',0.01);
            compPostureInd = compPostureInd + 1;
         end
-        %xlabel('Posture') %ylabel('\Delta PD rel. to Posture 1 (deg)')
         xlim([0 7])
-        %set(gca,'fontname','arial'); set(gca,'fontsize',fs)
         set(gca,'TickDir','out')
         if saveFig
             saveas(gcf,fullfile(saveDir,dataset,'ChangePD.svg'));
@@ -270,7 +289,7 @@ clear; clc; clf; close all
         
         %Violin w channels labeled
         figure; hold on;
-        violinplot(violinMat(:,2),violinMat(:,1),'ViolinColor',pcmap(plotPostures,:),'ShowData',false);
+        violinplot(violinMat(:,2),violinMat(:,1),'ViolinColor',pcmap(plotPostures,:),'ShowData',false,'ShowBox',false,'ShowMedian',false,'ShowWhiskers',false);
         scatterScale = 0.3;
         compPostureInd = 1;
         for compPosture = postureList(2:end)
@@ -306,19 +325,18 @@ clear; clc; clf; close all
          switch dataset
             %BCI
             case {'E20200316','E20200317','E20200318','E20200319'}
-                chList = [17,11,80];
+                chList = [50,80,82,24,66,61];
             case {'N20171215','N20180221'}
-                chList = [23,56];
+                chList = [23,56,7,12,30,55,76];
              case {'R20201020'}
-                 chList = [20,39];
+                 chList = [11,3,43,20,39,58,61,1];
              case {'E20210706'}
-                 chList = [17,88];
+                 chList = [17,56,49,88,97];
              case {'N20190226'}
-                 chList = [14,45,55];
+                 chList = [4,22,14,45,55,31,26,33];
              case {'R20200221'}
-                 chList = [97,132];
+                 chList = [19,59,83,18,77,87,141,133,97,132,111];
          end
-         fs = 16;
          for channel = chList
              f = figure; f.Position = [200 200 50 50];
              for posture = [1,biggestPosture]
@@ -341,9 +359,7 @@ clear; clc; clf; close all
                     plot(angleSpan,cosFit,'--','Color',pcmap(posture,:),'LineWidth',1.5)
                 end
                 hold on;
-                %plot(targetAngles,avgFR,'.','Color',pcmap(posture,:),'MarkerSize',5);
                 plot(angleSpan',allData,'.','Color',pcmap(posture,:),'MarkerSize',3);
-                %xticks([]); yticks([]) 
                 xticks([0:90:270]);
                 if posture == postureList(end)
                     yl = ylim;
