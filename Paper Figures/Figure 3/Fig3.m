@@ -9,9 +9,10 @@ clear; clc; clf; close all
    numPCsToKeep = 10;     %Num PCs to project data into before analysis
    numPdims = 2;
    numTdims = 2;
-   numBootReps = 10000;   %Num bootstrap resamples
-   numRandReps = 10000; %Num random subspace draws per bootstrap
+   numBootReps = 1000;   %Num bootstrap resamples
+   numRandReps = 1; %Num random subspace draws per bootstrap
    cutoffNumTraj = 10; %Num trials that must be present in a condition to keep it for analysis 
+   alpha = 0.05; %Significance level
    
 %% Datasets to include in analysis 
     reachDatasetList = {'E20210706','E20210707','E20210708',...
@@ -23,14 +24,14 @@ clear; clc; clf; close all
 %% Main loop   
     resultStruct = struct('animal',[],'dataset',[],'vPP',[],'vPT',[],'vTT',[],'vTP',[],'vPR',[],'vTR',[],'pAngle',[],'pAngleNull',[]);
     structInd = 1;
-    for datasetList = {'E20200316'}
+    for datasetList = isoDatasetList
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
         %Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
-        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',true);            
+        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);            
         %Remove any conditions for which there weren't enough trials
         [numCondTrials] = getNumCondTrials(trajStruct,'showHist',false);         
         trajStruct = trajStruct(numCondTrials >= cutoffNumTraj);       
@@ -84,7 +85,7 @@ clear; clc; clf; close all
                     numTraj = size(projStruct(j).allPCA,2);
                     sampInd = randsample(numTraj,numTraj,true); %True => with replacement
                     sampStruct(j).allPCA = projStruct(j).allPCA(sampInd);
-                    [sampStruct(j).avgPCA.traj,sampStruct(j).avgPCA.timestamps] = getAvgTraj(sampStruct(j).allPCA,binWidth);               
+                    [sampStruct(j).avgPCA.traj,sampStruct(j).avgPCA.timestamps] = getAvgTraj(sampStruct(j),'PCA',binWidth);               
                 end
                 %Get P and T signals
                 [pSig,tSig] = getPandTsig(sampStruct,'avgPCA',minNumTimestamps,postureList,numPostures,targetList,numTargets);
@@ -99,20 +100,7 @@ clear; clc; clf; close all
                 vPT(curInd) = trace(DT'*CP*DT)./trace(CP);
                 vTT(curInd) = trace(DT'*CT*DT)./trace(CT);
                 vTP(curInd) = trace(DP'*CT*DP)./trace(CT);
-                
-                %Get pAngle
-                %allPAngle = rad2deg(subspacea(DP,DT));
-                %pAngle(curInd) = allPAngle(1);
-                
-                %Get pAngleNull
-                v11 = normrnd(0,1,numPCsToKeep,1);
-                v21 = normrnd(0,1,numPCsToKeep,1);
-                DR1 = orth([v11,v21]);
-                v12 = normrnd(0,1,numPCsToKeep,1);
-                v22 = normrnd(0,1,numPCsToKeep,1);
-                DR2 = orth([v12,v22]);
-                %pAngleNull(curInd) = prinangle(DR1,DR2);
-                
+                     
                 %Compute random projections
                 tempvPR = NaN(1,numRandReps);
                 tempvTR = NaN(1,numRandReps);
@@ -135,8 +123,6 @@ clear; clc; clf; close all
         resultStruct(structInd).dataset = dataset; resultStruct(structInd).animal = dataset(1);
         resultStruct(structInd).vPP = vPP; resultStruct(structInd).vPT = vPT; resultStruct(structInd).vPR = vPR;
         resultStruct(structInd).vTT = vTT; resultStruct(structInd).vTP = vTP; resultStruct(structInd).vTR = vTR;
-        %resultStruct(structInd).pAngle = pAngle;
-        %resultStruct(structInd).pAngleNull = pAngleNull;
         structInd = structInd + 1;
         
     end
@@ -154,24 +140,22 @@ clear; clc; clf; close all
     tStruct = struct('h',[],'p',[],'ci',[],'stats',tempStruct);
     plotStruct = struct('monkey',[],'vPP',[],'vPPCI',[],'vPT',[],'vPTCI',[],'vTT',[],'vTTCI',[],'vTP',[],...
         'vTPCI',[],'vPR',[],'vPRCI',[],'vTR',[],'vTRCI',[],'vPP_PTt',tStruct,'vPT_PRt',tStruct,'vTT_TPt',tStruct,'vTP_TRt',tStruct);
-    CIpct = 95;
-    edgeSize = (100-CIpct)/2;
     plotStructInd = 1;
     for monkey = monkeyList
         tempResultStruct = resultStruct(strcmp(resultMonkeyList,monkey{1,1}));
         
         vPP = [tempResultStruct.vPP]*100;
-        vPPCI = [prctile(vPP,edgeSize) prctile(vPP,100-edgeSize)];
+        vPPCI = [prctile(vPP,alpha*100/2) prctile(vPP,100-(alpha*100/2))];
         vPT = [tempResultStruct.vPT]*100;
-        vPTCI = [prctile(vPT,edgeSize) prctile(vPT,100-edgeSize)];
+        vPTCI = [prctile(vPT,alpha*100/2) prctile(vPT,100-(alpha*100/2))];
         vPR = [tempResultStruct.vPR]*100;
-        vPRCI = [prctile(vPR,edgeSize) prctile(vPR,100-edgeSize)];
+        vPRCI = [prctile(vPR,alpha*100/2) prctile(vPR,100-(alpha*100/2))];
         vTT = [tempResultStruct.vTT]*100;
-        vTTCI = [prctile(vTT,edgeSize) prctile(vTT,100-edgeSize)];
+        vTTCI = [prctile(vTT,alpha*100/2) prctile(vTT,100-(alpha*100/2))];
         vTP = [tempResultStruct.vTP]*100;
-        vTPCI = [prctile(vTP,edgeSize) prctile(vTP,100-edgeSize)];
+        vTPCI = [prctile(vTP,alpha*100/2) prctile(vTP,100-(alpha*100/2))];
         vTR = [tempResultStruct.vTR]*100;
-        vTRCI = [prctile(vTR,edgeSize) prctile(vTR,100-edgeSize)];
+        vTRCI = [prctile(vTR,alpha*100/2) prctile(vTR,100-(alpha*100/2))];
         
         plotStruct(plotStructInd).monkey = monkey{1,1};
         plotStruct(plotStructInd).vPP = vPP;
@@ -215,7 +199,6 @@ clear; clc; clf; close all
     end
     
 %% Plot results
-    %mcmap = [0.4*ones(1,3); 0.6*ones(1,3); 0.9*ones(1,3)];
     mcmap = summer(4);
     mcmap = mcmap(1:3,:);
     
@@ -245,12 +228,13 @@ clear; clc; clf; close all
        monkeyInd = monkeyInd + 1; 
     end
     
+    %Combine vPR across monkeys, compute mean and CI, add to plot
     vPR = [resultStruct.vPR].*100;
     vPRMean = mean(vPR);
-    vPRCI = [prctile(vPR,edgeSize) prctile(vPR,100-edgeSize)];
+    vPRCI = [prctile(vPR,alpha*100/2) prctile(vPR,100-(alpha*100/2))];
     ax = gca;
     curXLims = ax.XLim;
-    shadedErrorBar(curXLims,[vPRMean,vPRMean],[vPRMean-vPRCI(1) vPRMean-vPRCI(1); vPRCI(2)-vPRMean vPRCI(2)-vPRMean],'lineprops',{'--','LineWidth',1.5,'Color',[0.3 0.3 0.3]});
+    shadedErrorBar(curXLims,[vPRMean,vPRMean],[vPRCI(2)-vPRMean vPRCI(2)-vPRMean;vPRMean-vPRCI(1) vPRMean-vPRCI(1)],'lineprops',{'--','LineWidth',1.5,'Color',[0.3 0.3 0.3]});
     set(gca,'fontname','arial'); set(gca,'fontsize',fs);
     ax.TickDir = 'out';
     yticks([0:25:100]);
@@ -276,12 +260,14 @@ clear; clc; clf; close all
        monkeyInd = monkeyInd + 1; 
     end
     
+    
+    %Combine vTR across monkeys, compute mean and CI, add to plot
     vTR = [resultStruct.vTR].*100;
     vTRMean = mean(vTR);
-    vTRCI = [prctile(vTR,edgeSize) prctile(vTR,100-edgeSize)];
+    vTRCI = [prctile(vTR,alpha*100/2) prctile(vTR,100-(alpha*100/2))];
     ax = gca;
     curXLims = ax.XLim;
-    shadedErrorBar(curXLims,[vTRMean,vTRMean],[vTRMean-vTRCI(1) vTRMean-vTRCI(1); vTRCI(2)-vTRMean vTRCI(2)-vTRMean],'lineprops',{'--','LineWidth',1.5,'Color',[0.3 0.3 0.3]});
+    shadedErrorBar(curXLims,[vTRMean,vTRMean],[vTRCI(2)-vTRMean vTRCI(2)-vTRMean; vTRMean-vTRCI(1) vTRMean-vTRCI(1)],'lineprops',{'--','LineWidth',1.5,'Color',[0.3 0.3 0.3]});
     set(gca,'fontname','arial'); set(gca,'fontsize',fs);
     ax.TickDir = 'out';
     yticks([0:25:100]);

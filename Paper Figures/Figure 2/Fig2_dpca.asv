@@ -12,32 +12,23 @@ clear; clc; clf; close all
 % TRIALS
 
 %% Set parameters
-    bciAnalysisWindow = [25,225];
+    bciAnalysisWindow = [50,250];
     isoAnalysisWindow = [];
     reachAnalysisWindow = [-200,300];
     numDPCs = 10;
     
 %% Main Loop    
     %{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
-    for datasetList = {'R20200221'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
+    for datasetList = {'E20200316'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
         %% Load Data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
-        
-%         %% Remove trials less that were shorter than duration of analysis window
-%         kinData = [Data.kinData];
-%         moveTime = [kinData.moveTime];
-%         Data = Data(moveTime >= bciAnalysisWindow(2));
-%         figure
-%         histogram(moveTime);
-        
-        
         %% Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
         switch dataset
             %BCI
             case {'E20200316','E20200317','E20200318'}
-                trialInclStates(1).inclStates = {{'state','Step 1','first',bciAnalysisWindow(1)},{'state','Step 1','first',bciAnalysisWindow(2)}};
+                trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Step 2','first',0}};
             case {'N20171215','N20180221'}
                 %trialInclStates(1).inclStates = {{'state','Cursor Freeze','first',0},{'state','Target Hold','first',0}};
             case {'R20201020','R20201021'}
@@ -57,7 +48,7 @@ clear; clc; clf; close all
                 trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
             case{'R20200221','R20200222'}
-                %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
+                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
         end     
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);
@@ -67,7 +58,12 @@ clear; clc; clf; close all
             trajStruct = trajStruct(ismember([trajStruct.posture],[1,2,3,4]));
         end
         
-
+        %% Remove trials less that were shorter than duration of analysis window
+        kinData = [Data.kinData];
+        moveTime = [kinData.moveTime];
+        Data = Data(moveTime >= 250);
+        figure
+        histogram(moveTime);
         
         %% Get traj struct dimensions
         [minNumTimestamps] = getMinNumTimestamps(trajStruct); 
@@ -132,7 +128,7 @@ clear; clc; clf; close all
             'combinedParams', combinedParams, ...
             'lambda', optimalLambda, ...
             'Cnoise', Cnoise);
-%         
+        
                
 %         [W,V,whichMarg] = dpca(Xdpca, numDPCs, ...
 %             'combinedParams', combinedParams);
@@ -140,57 +136,57 @@ clear; clc; clf; close all
         explVar = dpca_explainedVariance(Xdpca, W, V, ...
             'combinedParams', combinedParams);
 
-        %Compute variance manually
-        manualExplVar = zeros(1,10);
-        totalVar = 0;
-        totalSS = 0;
-        for i = 1:size(X,1)
-            for j = 1:size(X,2)
-                for k = 1:size(X,3)
-                    for l = 1:size(X,4)
-                        totalSS = X(i,j,k,l).^2 + totalSS;
-                    end
-                end
-            end
-        end
-        totalVar = totalSS;
+%         %Compute variance manually
+%         manualExplVar = zeros(1,10);
+%         totalVar = 0;
+%         totalSS = 0;
+%         for i = 1:size(X,1)
+%             for j = 1:size(X,2)
+%                 for k = 1:size(X,3)
+%                     for l = 1:size(X,4)
+%                         totalSS = X(i,j,k,l).^2 + totalSS;
+%                     end
+%                 end
+%             end
+%         end
+%         totalVar = totalSS;
+%         
+%         %Z = W'*Xdpca;
+%          % explVar.componentVar(i) = 100 - sum(sum((X - V(:,i)*Z(i,:)).^2)) / explVar.totalVar * 100;  
+%        
+%        for comp = 1:10
+%             remainMat = X;
+%             for j = 1:size(X,2)
+%                 for k = 1:size(X,3)
+%                     remainMat(:,j,k,:) = squeeze(remainMat(:,j,k,:)) - squeeze(X(:,j,k,:))*W(:,comp)*V(:,comp)';
+%                 end
+%             end
+%             totalSS = 0;
+%             for i = 1:size(X,1)
+%                 for j = 1:size(X,2)
+%                     for k = 1:size(X,3)
+%                         for l = 1:size(X,4)
+%                             totalSS = remainMat(i,j,k,l).^2 + totalSS;
+%                         end
+%                     end
+%                 end
+%             end
+%             remainVar = totalSS;
+%             
+%             manualExplVar(comp) = (totalVar-remainVar)/totalVar;
+%         end
         
-        %Z = W'*Xdpca;
-         % explVar.componentVar(i) = 100 - sum(sum((X - V(:,i)*Z(i,:)).^2)) / explVar.totalVar * 100;  
-       
-       for comp = 1:10
-            remainMat = X;
-            for j = 1:size(X,2)
-                for k = 1:size(X,3)
-                    remainMat(:,j,k,:) = squeeze(remainMat(:,j,k,:)) - squeeze(X(:,j,k,:))*W(:,comp)*V(:,comp)';
-                end
-            end
-            totalSS = 0;
-            for i = 1:size(X,1)
-                for j = 1:size(X,2)
-                    for k = 1:size(X,3)
-                        for l = 1:size(X,4)
-                            totalSS = remainMat(i,j,k,l).^2 + totalSS;
-                        end
-                    end
-                end
-            end
-            remainVar = totalSS;
-            
-            manualExplVar(comp) = (totalVar-remainVar)/totalVar;
-        end
         
         
-        
-%         dpca_plot(Xdpca, W, V, @dpca_plot_default, ...
-%             'explainedVar', explVar, ...
-%             'marginalizationNames', margNames, ...
-%             'marginalizationColours', margColours, ...
-%             'whichMarg', whichMarg,                 ...
-%             'time', time,                        ...
-%             'timeEvents', timeEvents,               ...
-%             'timeMarginalization', 3, ...
-%             'legendSubplot', 1);
+        dpca_plot(Xdpca, W, V, @dpca_plot_default, ...
+            'explainedVar', explVar, ...
+            'marginalizationNames', margNames, ...
+            'marginalizationColours', margColours, ...
+            'whichMarg', whichMarg,                 ...
+            'time', time,                        ...
+            'timeEvents', timeEvents,               ...
+            'timeMarginalization', 3, ...
+            'legendSubplot', 1);
 
         % Plot Marginal dims
         postureMargID = find(strcmp(margNames,'P'));

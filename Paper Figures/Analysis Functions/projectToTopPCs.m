@@ -4,7 +4,6 @@ function [trajStruct] = projectToTopPCs(allTraj,trajStruct,numPCsToKeep)
         %allTraj is already mean-centered, so no need to mean-center again
         %before projection
 
-
         [allPCs,~,~,~,~,~] = pca(allTraj);
         
         for i = 1:size(trajStruct,2)
