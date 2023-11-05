@@ -24,7 +24,7 @@ clear; clc; clf; close all
 %% Main loop   
     resultStruct = struct('animal',[],'dataset',[],'vPP',[],'vPT',[],'vTT',[],'vTP',[],'vPR',[],'vTR',[],'pAngle',[],'pAngleNull',[]);
     structInd = 1;
-    for datasetList = isoDatasetList
+    for datasetList = bciDatasetList
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};

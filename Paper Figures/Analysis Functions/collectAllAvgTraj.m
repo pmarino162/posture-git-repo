@@ -1,4 +1,4 @@
-function [allTraj] = collectAllAvgTraj(trajStruct)
+function [allTraj,Mu] = collectAllAvgTraj(trajStruct)
         
         %Get 'allTraj', which is the name used for matrix of concatentated
         %condition-averages (mean-centered, truncated to minimum length)
@@ -14,6 +14,7 @@ function [allTraj] = collectAllAvgTraj(trajStruct)
         end
         
         %Mean center
+        Mu = mean(allTraj,1);
         allTraj = allTraj - mean(allTraj,1);
         
 end

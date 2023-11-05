@@ -12,14 +12,15 @@ clear; clc; clf; close all
 % TRIALS
 
 %% Set parameters
-    bciAnalysisWindow = [25,225];
-    isoAnalysisWindow = [];
-    reachAnalysisWindow = [-200,300];
-    numDPCs = 10;
-    
-%% Main Loop    
-    %{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
-    for datasetList = {'R20200221'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
+%     bciAnalysisWindow = [25,225];
+%     isoAnalysisWindow = [];
+%     reachAnalysisWindow = [-200,300];
+     numDPCs = 15;
+%     
+%% Main Loop  
+%{'R20200221'}%{'E20200317','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}%{'R20200221'}%{'E20200317','E20200116','E20210706'}       
+    %{'E20200318','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
+    for datasetList = {'E20200318'}%{'E20200318','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
         %% Load Data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
@@ -35,30 +36,30 @@ clear; clc; clf; close all
         %% Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
         switch dataset
-            %BCI
-            case {'E20200316','E20200317','E20200318'}
-                trialInclStates(1).inclStates = {{'state','Step 1','first',bciAnalysisWindow(1)},{'state','Step 1','first',bciAnalysisWindow(2)}};
-            case {'N20171215','N20180221'}
-                %trialInclStates(1).inclStates = {{'state','Cursor Freeze','first',0},{'state','Target Hold','first',0}};
-            case {'R20201020','R20201021'}
-                %trialInclStates(1).inclStates = {{'state','React','first',0},{'state','Hold','first',0}};
-            case 'E20210901'
-                taskID = [Data.conditionData]; taskID = [taskID.taskID];
-                Data = Data(taskID==1);
-                %trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Success with Reward','first',0}};
-            %Iso
+%             %BCI
+             case {'E20200316','E20200317','E20200318'}
+                %trialInclStates(1).inclStates = {{'state','Step 1','first',50},{'state','Step 1','first',225}};
+%             case {'N20171215','N20180221'}
+%                 %trialInclStates(1).inclStates = {{'state','Cursor Freeze','first',0},{'state','Target Hold','first',0}};
+%             case {'R20201020','R20201021'}
+%                 %trialInclStates(1).inclStates = {{'state','React','first',0},{'state','Hold','first',0}};
+%             case 'E20210901'
+%                 taskID = [Data.conditionData]; taskID = [taskID.taskID];
+%                 Data = Data(taskID==1);
+%                 %trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Success with Reward','first',0}};
+%             %Iso
             case 'E20200116'
-                %trialInclStates(1).inclStates = {{'state','Target','first',0},{'state','Target','first',500}};
-            %Reaching
-            case 'E20210706'
-                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
-                %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
-            case{'N20190222','N20190226','N20190227','N20190228','N20190307'}
-                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
-                %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
-            case{'R20200221','R20200222'}
-                %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
-                %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
+                trialInclStates(1).inclStates = {{'state','Target','first',0},{'state','Target','first',250}};
+%             %Reaching
+%             case 'E20210706'
+%                 trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
+%                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
+%             case{'N20190222','N20190226','N20190227','N20190228','N20190307'}
+%                 trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
+%                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
+%             case{'R20200221','R20200222'}
+%                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',reachAnalysisWindow(1)},{'kin','moveOnsetTime','first',reachAnalysisWindow(2)}};
+%                 %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',50}};
         end     
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);
     
@@ -66,12 +67,9 @@ clear; clc; clf; close all
         if strcmpi(dataset,'E20210706')
             trajStruct = trajStruct(ismember([trajStruct.posture],[1,2,3,4]));
         end
-        
-
-        
+              
         %% Get traj struct dimensions
         [minNumTimestamps] = getMinNumTimestamps(trajStruct); 
-        %minNumTimestamps = 8;
         [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct); 
         
         %% Setup colormap (based on number of postures)
@@ -128,59 +126,18 @@ clear; clc; clf; close all
             XdpcaFull, numOfTrials, 'simultaneous', true);
 
         %% Compute dPCs
-        [W,V,whichMarg] = dpca(Xdpca, numDPCs, ...
-            'combinedParams', combinedParams, ...
-            'lambda', optimalLambda, ...
-            'Cnoise', Cnoise);
-%         
-               
 %         [W,V,whichMarg] = dpca(Xdpca, numDPCs, ...
-%             'combinedParams', combinedParams);
+%             'combinedParams', combinedParams, ...
+%             'lambda', optimalLambda, ...
+%             'Cnoise', Cnoise);
 
+        [W,V,whichMarg] = dpca(Xdpca, numDPCs, ...
+            'combinedParams', combinedParams);
+        
         explVar = dpca_explainedVariance(Xdpca, W, V, ...
             'combinedParams', combinedParams);
-
-        %Compute variance manually
-        manualExplVar = zeros(1,10);
-        totalVar = 0;
-        totalSS = 0;
-        for i = 1:size(X,1)
-            for j = 1:size(X,2)
-                for k = 1:size(X,3)
-                    for l = 1:size(X,4)
-                        totalSS = X(i,j,k,l).^2 + totalSS;
-                    end
-                end
-            end
-        end
-        totalVar = totalSS;
-        
-        %Z = W'*Xdpca;
-         % explVar.componentVar(i) = 100 - sum(sum((X - V(:,i)*Z(i,:)).^2)) / explVar.totalVar * 100;  
-       
-       for comp = 1:10
-            remainMat = X;
-            for j = 1:size(X,2)
-                for k = 1:size(X,3)
-                    remainMat(:,j,k,:) = squeeze(remainMat(:,j,k,:)) - squeeze(X(:,j,k,:))*W(:,comp)*V(:,comp)';
-                end
-            end
-            totalSS = 0;
-            for i = 1:size(X,1)
-                for j = 1:size(X,2)
-                    for k = 1:size(X,3)
-                        for l = 1:size(X,4)
-                            totalSS = remainMat(i,j,k,l).^2 + totalSS;
-                        end
-                    end
-                end
-            end
-            remainVar = totalSS;
-            
-            manualExplVar(comp) = (totalVar-remainVar)/totalVar;
-        end
-        
-        
+        cumulativeDPCA = explVar.cumulativeDPCA;
+        additionalVarExpl = [cumulativeDPCA(1) diff(cumulativeDPCA)];
         
 %         dpca_plot(Xdpca, W, V, @dpca_plot_default, ...
 %             'explainedVar', explVar, ...
@@ -216,9 +173,8 @@ clear; clc; clf; close all
             trajStruct(i).PTOrth.traj = trajStruct(i).avgZSmoothFR.traj*PTOrth;
             trajStruct(i).dPCA.traj = trajStruct(i).avgZSmoothFR.traj*W;
             %Get VAF
-            trajStruct(i).PTOrth.VAF =  [explVar.componentVar(postureDims(1)),explVar.componentVar(targetDims(1)),explVar.componentVar(targetDims(2))];
+            trajStruct(i).PTOrth.VAF =  [additionalVarExpl(postureDims(1)),additionalVarExpl(targetDims(1)),additionalVarExpl(targetDims(2))];
             trajStruct(i).dPCA.VAF = explVar.componentVar;
-            %100.*(diag(cov(allTraj*PTOrth))')./totalVar;
         end
 
         %Plot - Orthographic
@@ -305,5 +261,5 @@ clear; clc; clf; close all
         end           
 
         
-        %clf; close all
+        clf; close all
     end

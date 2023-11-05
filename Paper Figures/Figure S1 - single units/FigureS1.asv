@@ -22,7 +22,7 @@ clear; clc; clf; close all
     
     %TCDatasetList = {'R20200221'};
     
-    for datasetList = TCDatasetList    
+    for datasetList = {'E20210706'}        
         %% Get trajStruct
         %Load data
         dataset = datasetList{1,1};
