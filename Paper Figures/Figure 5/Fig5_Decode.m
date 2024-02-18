@@ -26,18 +26,12 @@ clear; clc; clf; close all;
         [Data,zScoreParams] = loadData(dataset);
 
         %Get trajStruct
-        binWidth = 25; kernelStdDev = 25;
-        trialInclStates = struct('trialName','','inclStates',[]);
-        trajFields = {'zSmoothFR','markerVel','marker'};
+        [Data] = removeShortBCIandIsoTrials(Data,dataset);
+        [~,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
         condFields = {{'task','conditionData','taskID'},{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
-
-        trialInclStates(1).trialName = {'GridTask_BC_ForceBar'};
-            trialInclStates(1).inclStates = {{'state','Step 1 Freeze','first',0},{'state','Step 2','first',0}};
-        trialInclStates(2).trialName = {'HC_CenterOut_ForceBar_20200314'};
-            trialInclStates(2).inclStates = {{'kin','moveOnsetTime','first',-300},{'kin','moveOnsetTime','first',-100}};
-        trialInclStates(3).trialName = {'IsometricForce_1D'};
-            trialInclStates(3).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
-        trajStruct = getTrajStruct20220419(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'matchConditions',false,'zScoreParams',zScoreParams);
+        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);  
+        [minNumTimestamps] = getMinNumTimestamps(trajStruct); 
+        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct); 
 
         taskIDs = struct('ID',[],'task','');
         taskIDs(1).ID = 1; taskIDs(1).task = 'BC';
@@ -48,25 +42,25 @@ clear; clc; clf; close all;
         %For each timecourse, get one point
          for i = 1:size(trajStruct,2)
             %Individual trials
-            for j = 1:size(trajStruct(i).allSmoothFR,2)
-               trajStruct(i).allSmoothFR(j).obs = mean(trajStruct(i).allSmoothFR(j).traj); 
+            for j = 1:size(trajStruct(i).allZSmoothFR,2)
+               trajStruct(i).allZSmoothFR(j).obs = mean(trajStruct(i).allZSmoothFR(j).traj); 
             end
             %Condition average
-            trajStruct(i).avgSmoothFR.condAvg = mean(trajStruct(i).avgSmoothFR.traj);
+            trajStruct(i).avgZSmoothFR.condAvg = mean(trajStruct(i).avgZSmoothFR.traj);
          end
 
         %Reduce dimensionality of observations
         allObs = [];
         for i = 1:size(trajStruct,2)
-            for j = 1:size(trajStruct(i).allSmoothFR,2)
-                obs = trajStruct(i).allSmoothFR(j).obs;
+            for j = 1:size(trajStruct(i).allZSmoothFR,2)
+                obs = trajStruct(i).allZSmoothFR(j).obs;
                 allObs = vertcat(allObs,obs);
             end
         end
         [coeff,score,latent,tsquared,explained,mu] = pca(allObs); 
         for i = 1:size(trajStruct,2)
-            for j = 1:size(trajStruct(i).allSmoothFR,2)
-                trajStruct(i).allSmoothFR(j).obs = trajStruct(i).allSmoothFR(j).obs*coeff(:,1:numManPCs);
+            for j = 1:size(trajStruct(i).allZSmoothFR,2)
+                trajStruct(i).allZSmoothFR(j).obs = trajStruct(i).allZSmoothFR(j).obs*coeff(:,1:numManPCs);
             end
         end
 
@@ -84,7 +78,7 @@ clear; clc; clf; close all;
                 tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
                 tempMinNumCondObs = 999999999;
                 for i = 1:size(tempTrajStruct,2)
-                    numCondObs = size(vertcat(tempTrajStruct(i).allSmoothFR.obs),1);
+                    numCondObs = size(vertcat(tempTrajStruct(i).allZSmoothFR.obs),1);
                     if numCondObs < tempMinNumCondObs
                         tempMinNumCondObs = numCondObs;
                     end
@@ -106,18 +100,12 @@ clear; clc; clf; close all;
                     tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
                     numObsToUsePerTarget = minNumObsStruct([minNumObsStruct.task]==task & [minNumObsStruct.posture]==posture).minNumObs;
                     for i = 1:size(tempTrajStruct,2)
-                        condObs = vertcat(tempTrajStruct(i).allSmoothFR.obs);
+                        condObs = vertcat(tempTrajStruct(i).allZSmoothFR.obs);
                         obs = vertcat(obs,datasample(condObs,numObsToUsePerTarget,'Replace',false));
                         posture = tempTrajStruct(i).posture;
                         labels = vertcat(labels,ones(numObsToUsePerTarget,1)*posture);
                     end  
                 end
-
-%                %%%%%%%%%%%%%%%%%%%%      
-%                %Subtract task mean
-%                obs = obs - mean(obs);
-%                %%%%%%%%%%%%%%%%%%%%
-
 
             elseif task == 4
                minNumTaskObs = 999999999999;
@@ -144,10 +132,7 @@ clear; clc; clf; close all;
             structInd = structInd + 1;
         end
         
-        
-        
  
-
         %% Decode - train on one task, test on others
         result = struct('trainTask',[],'testTask',[],'pctCorrect',[],'avgPctCorrect',[]);
         %Set up result struct

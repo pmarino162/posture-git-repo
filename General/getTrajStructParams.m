@@ -25,10 +25,23 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
                 trialInclStates(1).inclStates = {{'state','React','first',50},{'state','React','first',250}};
                 task = 'bci';
-            case {'E20210901'}
+            case {'E20210901'} %Earl elbow and shoulder session
                 trialInclStates(1).trialName = {'BCI Center Out'};
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
                 trialInclStates(1).inclStates = {{'state','Step 1','first',50},{'state','Step 1','first',250}};
+            case {'E20190729'} %Earl alternate decoder session                
+                trialInclStates(1).trialName = {'CentetOut_BC_TouchBar'};
+                %trialInclStates(1).inclStates = {{'state','Step 1','first',0},{'state','Success with Reward','first',0}};
+                trialInclStates(1).inclStates = {{'state','Step 1','first',50},{'state','Step 1','first',250}};
+                trialInclStates(2).trialName = {'CenterOutCenter_BC_TouchBar'};
+                %trialInclStates(2).inclStates = {{'state','Step 1','first',0},{'state','Step 2','first',0}};
+                trialInclStates(2).inclStates = {{'state','Step 1','first',50},{'state','Step 1','first',250}};
+                condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'},{'decoder','conditionData','decoderPostureID'}};
+            case {'E20190830'}
+                trialInclStates(1).trialName = {'CenterOut_ForceBar_BC'};
+                condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
+                trialInclStates(1).inclStates = {{'state','BC Freeze','first',0},{'state','Success with Reward','first',0}};
+
             %Iso
             case {'E20200116','E20200117','E20200120'}
                 trialInclStates(1).trialName = {'IsometricForce_1D'};   
@@ -60,7 +73,8 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
                 trialInclStates(2).trialName = {'HC_CenterOut_ForceBar_20200314'};
                     trialInclStates(2).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
                 trialInclStates(3).trialName = {'IsometricForce_1D'};
-                    trialInclStates(3).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
+                    trialInclStates(3).inclStates = {{'state','Target','first',50},{'state','Target','first',250}};
+                    %trialInclStates(3).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
         end 
 
 

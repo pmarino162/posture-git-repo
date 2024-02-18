@@ -6,12 +6,12 @@ function [postureList,numPostures,targetList,numTargets,numChannels,numCondition
     numPostures = size(postureList,2);
     targetList = unique([trajStruct.target]); 
     numTargets = size(targetList,2);
-    if isfield(trajStruct,'task')
-       taskList = unique([trajStruct.task]);
-       numTasks = size(taskList,2);
-       varargout(1) = taskList;
-       varargout(2) = numTasks;
-    end
+%     if isfield(trajStruct,'task')
+%        taskList = unique([trajStruct.task]);
+%        numTasks = size(taskList,2);
+%        varargout(1) = taskList;
+%        varargout(2) = numTasks;
+%     end
     if isfield(trajStruct,'avgZSmoothFR')
         numChannels = size(trajStruct(1).avgZSmoothFR.traj,2);
     elseif isfield(trajStruct,'avgSmoothFR')

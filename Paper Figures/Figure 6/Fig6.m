@@ -7,7 +7,7 @@ clear; clc; clf; close all
     
 %% Set parameters
    numPCsToKeep = 10;    %Num PCs to project data into before analysis
-   numIterations = 1000;
+   numIterations = 20;
    cutoffNumTraj = 10; %Num trials that must be present in a condition to keep it for analysis 
    
 %% Datasets to include in analysis 
@@ -25,9 +25,13 @@ clear; clc; clf; close all
         %Load data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
+        [Data] = removeShortBCIandIsoTrials(Data,dataset);
         %Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',false);  
+        %Project all data down to top PCs
+        [allTraj] = collectAllAvgTraj(trajStruct);
+        [trajStruct] = projectToTopPCs(allTraj,trajStruct,numPCsToKeep);
         %Remove any conditions for which there weren't enough trials
         [numCondTrials] = getNumCondTrials(trajStruct,'showHist',false);         
         trajStruct = trajStruct(numCondTrials >= cutoffNumTraj);    
@@ -36,9 +40,7 @@ clear; clc; clf; close all
         %Get minimum number of condition trials and timestamps
         [minNumCondTrials] = getMinNumCondTrials(trajStruct);
         [minNumTimestamps] = getMinNumTimestamps(trajStruct); 
-        %Project all data down to top PCs
-        [allTraj] = collectAllAvgTraj(trajStruct);
-        [trajStruct] = projectToTopPCs(allTraj,trajStruct,numPCsToKeep);
+
                 
         %% Preallocate sessionResultStruct
         sessionResultStruct = struct('predictedPosture',[],'predictedTarget',[],'predictorPosture',[],'predictorTarget',[],... 
@@ -80,10 +82,10 @@ clear; clc; clf; close all
                     for predictorPosture = postureList(postureList>predictedPosture)
                         if any([trajStruct.posture]==predictorPosture & [trajStruct.target]==predictedTarget)
                             predictedCond = find([trajStruct1.target]==predictedTarget & [trajStruct1.posture]==predictedPosture);
-                            predictorCond = find([trajStruct2.target]==predictedTarget & [trajStruct2.posture]==predictorPosture);
+                            predictorCond = find([trajStruct1.target]==predictedTarget & [trajStruct1.posture]==predictorPosture);
                             %Compute comparison difference 
                             traj1 = trajStruct1(predictedCond).avgPCA.traj;%Predicted traj
-                            traj2 = trajStruct2(predictorCond).avgPCA.traj;%Comparison traj
+                            traj2 = trajStruct1(predictorCond).avgPCA.traj;%Comparison traj
                             baselineTraj = trajStruct2(predictedCond).avgPCA.traj;%Used for normalization
                             unshiftTraj2 = traj2;
                             if min([size(traj1,1),size(traj2,1)]) < numPts
@@ -195,36 +197,41 @@ clear; clc; clf; close all
        allMonkeyComparisons = allMonkeyComparisonsStruct(monkeyInd).allMonkeyComparisons;
        switch monkeyInd
            case 1
-                scatter(mean(allMonkeyComparisons(:,1)),mean(allMonkeyComparisons(:,2)),60,'o',...
-               'MarkerEdgeColor',[1 0 0],'MarkerFaceColor',[1 0 0],...
+                scatter(mean(allMonkeyComparisons(:,1)),mean(allMonkeyComparisons(:,2)),225,'o',...
+               'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
                'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);    
            case 2           
-                   scatter(mean(allMonkeyComparisons(:,1)),mean(allMonkeyComparisons(:,2)),60,'d',...
-               'MarkerEdgeColor',[1 0 0],'MarkerFaceColor',[1 0 0],...
+                   scatter(mean(allMonkeyComparisons(:,1)),mean(allMonkeyComparisons(:,2)),225,'d',...
+               'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
                'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);   
            case 3
-                   scatter(mean(allMonkeyComparisons(:,1)),mean(allMonkeyComparisons(:,2)),100,'x',...
+                   scatter(mean(allMonkeyComparisons(:,1)),mean(allMonkeyComparisons(:,2)),275,'x',...
                'MarkerEdgeColor',[1 0 0],'MarkerFaceColor',[1 0 0],...
                'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);   
        end
        monkeyInd = monkeyInd + 1; 
     end
+    
     ax = gca;
     xlim = ax.XLim; ylim = ax.YLim;
-    
     %Diagonal Line
     maxVal = max(horzcat(xlim,ylim));
-    plot([0.5,maxVal],[0.5,maxVal],'--','LineWidth',2,'Color','k')
+    %minVal = min(horzcat(xlim,ylim));
+    minVal = 0.75
+    plot([minVal ,maxVal],[minVal, maxVal],'--','LineWidth',2,'Color','k')
     %Line at 1
     ax = gca;
     xlim = ax.XLim; ylim = ax.YLim;
     plot([xlim(1),xlim(2)],[1,1],'--','LineWidth',2,'Color','k')
     %Axis Labels, ticks
+    ax.XLim = [minVal, maxVal];
+    ax.YLim = [minVal, maxVal];
     xticks([1,xlim(2)])
     yticks([1,ylim(2)])
     ax.TickDir = 'out';
-    ylabel('Normalized Error After Shift')
-    xlabel('Normalized Error Before Shift')
+    set(gca,'fontname','arial'); set(gca,'fontsize',20);
+    %ylabel('Normalized Error After Shift')
+    %xlabel('Normalized Error Before Shift')
     
 %% Get overall pct reduction for reporting in text
     for monkey = monkeyList

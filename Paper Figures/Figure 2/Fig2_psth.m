@@ -8,6 +8,7 @@ clear; clc; clf; close all
 %% Load data
     dataset = 'E20200316';
     [Data,zScoreParams] = loadData(dataset);
+    [Data] = removeShortBCIandIsoTrials(Data,dataset);
     
 %% Get trajStruct
     %Get trajStruct - adjust for (1) time window (-50 to +250ms rel. Go) & (2) no z-score 
@@ -82,8 +83,9 @@ clear; clc; clf; close all
     targetUnits = find([anovaResultStruct.tuning]==1);
     postureUnits = find([anovaResultStruct.tuning]==2);
     %chList = [3,34,49];
-    chList = [3,34,65];
+    
 %% Plot selected units 
+chList = [5,46,87];
     %Plot all postures for target 1
     f = figure; f.Position = [100,-200,518,950];
     target = 1;

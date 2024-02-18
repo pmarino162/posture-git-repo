@@ -1,7 +1,7 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
+    saveFig = true;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 3';
     set(0, 'DefaultFigureRenderer', 'painters');
     
@@ -9,11 +9,13 @@ clear; clc; clf; close all
    numPCsToKeep = 10;     %Num PCs to project data into before analysis
    numPdims = 2;
    numTdims = 2;
+   inclAvgDot = true; %If true, make traces transparent and add dot for average on top
 
 %% Run loop for each dataset      
     %Load data
     dataset = 'E20200318';
     [Data,zScoreParams] = loadData(dataset);
+    [Data] = removeShortBCIandIsoTrials(Data,dataset);
     %Get trajStruct
     [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
     trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);                 
@@ -35,12 +37,15 @@ clear; clc; clf; close all
  
 %% Plot
         fs = 6;
-        dotSize = 4;
+        dotSize = 12;%3;
         figScale = 0.24;
         lineWidth = .65;
         dotLineWidth = .2;
-        lineAlpha = .3;
-           inclAvgDot = true; %If true, make traces transparent and add dot for average on top
+        dotAlpha = .95;
+        lineAlpha = .6;
+        trajEndDotSize = 2;
+        trajEndDotAlpha = .6;
+        
         %Plot T signal in T subspace    
         f = figure; 
         f.Position = [200 200 f.Position(3)*figScale f.Position(4)*figScale]; 
@@ -52,7 +57,12 @@ clear; clc; clf; close all
             if inclAvgDot
                 trajAvg = mean(proj(:,[1,2]));
                 plot(proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',[tcmap(target,:),lineAlpha]);
-                plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',tcmap(target,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth)
+                scatter(proj(end,1),proj(end,2),trajEndDotSize,tcmap(target,:),'filled');
+                alpha(trajEndDotAlpha);
+                scatter(trajAvg(:,1),trajAvg(:,2),dotSize,tcmap(target,:),'filled');
+                alpha(dotAlpha);
+                %plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',tcmap(target,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth) 
+                %plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',tcmap(target,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth)    
             else
                 plot(proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',tcmap(target,:));
             end
@@ -83,10 +93,14 @@ clear; clc; clf; close all
             proj = traj*pDims;
             if inclAvgDot
                 trajAvg = mean(proj(:,[1,2]));
-                plot(proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',[pcmap(posture,:),lineAlpha]);
-                plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',pcmap(posture,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth)
+                plot(-proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',[pcmap(posture,:),lineAlpha]);
+                scatter(-proj(end,1),proj(end,2),trajEndDotSize,pcmap(posture,:),'filled');
+                alpha(trajEndDotAlpha);
+                scatter(-trajAvg(:,1),trajAvg(:,2),dotSize,pcmap(posture,:),'filled');
+                alpha(dotAlpha);
+                %plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',pcmap(posture,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth)
             else
-                plot(proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',pcmap(posture,:));
+                plot(-proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',pcmap(posture,:));
             end
             postureInd = postureInd + 1;
         end
@@ -114,7 +128,11 @@ clear; clc; clf; close all
             if inclAvgDot
                 trajAvg = mean(proj(:,[1,2]));
                 plot(proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',[pcmap(posture,:),lineAlpha]);
-                plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',pcmap(posture,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth)
+                scatter(proj(end,1),proj(end,2),trajEndDotSize,pcmap(posture,:),'filled');
+                alpha(trajEndDotAlpha);
+                scatter(trajAvg(:,1),trajAvg(:,2),dotSize,pcmap(posture,:),'filled');
+                alpha(dotAlpha);
+                %plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',pcmap(posture,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth)
             else
                 plot(proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',pcmap(posture,:));
             end
@@ -144,10 +162,14 @@ clear; clc; clf; close all
             proj = traj*pDims;        
             if inclAvgDot
                 trajAvg = mean(proj(:,[1,2]));
-                plot(proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',[tcmap(target,:),lineAlpha]);
-                plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',tcmap(target,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth)
+                plot(-proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',[tcmap(target,:),lineAlpha]);
+                scatter(-proj(end,1),proj(end,2),trajEndDotSize,tcmap(target,:),'filled');
+                alpha(trajEndDotAlpha);
+                scatter(-trajAvg(:,1),trajAvg(:,2),dotSize,tcmap(target,:),'filled');
+                alpha(dotAlpha);
+                %plot(trajAvg(:,1),trajAvg(:,2),'o','MarkerSize',dotSize,'MarkerFaceColor',tcmap(target,:),'MarkerEdgeColor',[0 0 0],'LineWidth',dotLineWidth)
             else
-                plot(proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',tcmap(target,:));
+                plot(-proj(:,1),proj(:,2),'LineWidth',lineWidth,'Color',tcmap(target,:));
             end          
             targetInd = targetInd + 1;
         end
@@ -165,4 +187,3 @@ clear; clc; clf; close all
         if saveFig
             saveas(gcf,fullfile(saveDir,[dataset,'_TSigPSub.svg']));
         end
-              

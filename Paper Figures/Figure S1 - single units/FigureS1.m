@@ -13,6 +13,7 @@ clear; clc; clf; close all
 %% Main loop
     TCDatasetList = {'E20200316','N20171215','R20201020','E20210706','N20190226','R20200221'};
     %E20200316 1=I30 - 5=E30
+    %E20210901 1=I30 3=E30 4=F30 5=eE30
     %N20171215 1=N00, 2=I45, 3=A90
     %R20201020 1=N00, 2=A90
     %R20201021 1=N00, 2=I45 
@@ -22,7 +23,7 @@ clear; clc; clf; close all
     
     %TCDatasetList = {'R20200221'};
     
-    for datasetList = TCDatasetList    
+    for datasetList = TCDatasetList
         %% Get trajStruct
         %Load data
         dataset = datasetList{1,1};
