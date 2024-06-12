@@ -40,7 +40,6 @@ for datasetList = {'E20210706'}
     %% Setup colormap (based on number of postures)
     [pcmap,tcmap,rainbow] = getColorMaps(numPostures);    
     
-    
     %% PCA version
     %Project all data down to top PCs
     [allTraj,Mu] = collectAllAvgTraj(trajStruct);
@@ -318,6 +317,7 @@ subplot(2,1,2)
     if saveFig
         saveas(gcf,fullfile(saveDir,[dataset,'_dPCA_Traces.svg']));
     end
+    
 %% Plot correlation
     plotInd = 1;
     for plotPostureList = [2,7]

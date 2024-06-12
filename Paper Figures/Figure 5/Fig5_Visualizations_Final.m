@@ -368,7 +368,7 @@ fs = 14;
                h = surf(X,Y,Z,colorMat);
                set(h, 'FaceAlpha', ellAlpha)
                shading faceted
-               plot3(u(:,1),u(:,2),u(:,3),'.','MarkerSize',20,'Color',pcmap(posture,:));
+               %plot3(u(:,1),u(:,2),u(:,3),'.','MarkerSize',20,'Color',pcmap(posture,:));
             
         end       
     end
@@ -382,7 +382,7 @@ fs = 14;
         xticklabels({}); yticklabels({}); zticklabels({});
         set(gca,'fontname','arial')
         set(gca,'fontsize',fs)
-
+        ax.ZLim(1) = -7.5
         view([-40 10])
         if saveFig
            saveas(gcf,fullfile(saveDir,[dataset,'_taskXposture3d.svg']));

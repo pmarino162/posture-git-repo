@@ -9,7 +9,7 @@ clear; clc; clf; close all
     regularize = true;
     
 %% Main Loop  
-    for datasetList = {'R20200221'}%{'E20200318','E20210901','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
+    for datasetList = {'E20210708'}%{'E20200318','E20210901','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
         %% Load Data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
@@ -19,9 +19,16 @@ clear; clc; clf; close all
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);
     
-        %% Keep postures 1-4 only for earl reaching
-        if strcmpi(dataset,'E20210706')
-            trajStruct = trajStruct(ismember([trajStruct.posture],[1,2,3,4]));
+        %% For earl reaching, keep postures 2 and 7, but relabel as 1 and 2 for color purposes
+        if strcmpi(dataset,'E20210708')
+            trajStruct = trajStruct(ismember([trajStruct.posture],[2,7]));
+            for i = 1:size(trajStruct,2)
+               if trajStruct(i).posture == 2
+                   trajStruct(i).posture = 1;
+               elseif trajStruct(i).posture == 7
+                   trajStruct(i).posture = 2;
+               end
+            end
         end
               
         %% Get traj struct dimensions
