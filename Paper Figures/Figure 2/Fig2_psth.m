@@ -1,7 +1,7 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
+    saveFig = true;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 2';
     set(0, 'DefaultFigureRenderer', 'painters');
 
@@ -82,10 +82,10 @@ clear; clc; clf; close all
     mixedUnits = find([anovaResultStruct.tuning]==3);
     targetUnits = find([anovaResultStruct.tuning]==1);
     postureUnits = find([anovaResultStruct.tuning]==2);
-    %chList = [3,34,49];
+    chList = [3,34,49];
     
 %% Plot selected units 
-chList = [5,46,87];
+%chList = [5,46,87];
     %Plot all postures for target 1
     f = figure; f.Position = [100,-200,518,950];
     target = 1;
@@ -103,6 +103,9 @@ chList = [5,46,87];
         end
     end
     format3NeuronPSTH();
+    if saveFig
+        saveas(gcf,fullfile(saveDir,[dataset,'_posture_PSTH.svg']));
+    end
     
     %Plot all targets for posture 1
     f = figure; f.Position = [100,-200,518,950];
@@ -121,7 +124,10 @@ chList = [5,46,87];
         end
     end
     format3NeuronPSTH();
-
+    if saveFig
+        saveas(gcf,fullfile(saveDir,[dataset,'_target_PSTH.svg']));
+    end
+    
 %% Local functions
     function [] = format3NeuronPSTH()
         for chInd = 1:3

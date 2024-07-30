@@ -106,11 +106,11 @@ clear; clc; clf; close all
                     resultStruct(channel).tuning = 2;
                 end
             end
-            if postureP > alpha && targetP < alpha
+            if postureP >= alpha && targetP < alpha
                 numTarget = numTarget + 1;
                 resultStruct(channel).tuning = 1;
             end
-            if postureP > alpha && targetP > alpha
+            if postureP >= alpha && targetP >= alpha
                 numNeither = numNeither + 1;
                 resultStruct(channel).tuning = 0;
             end
@@ -242,7 +242,7 @@ clear; clc; clf; close all
                end              
                %Test if significatly different from zero (two-tailed)
                CI = [prctile(bootDelPD,(alpha*100/2)),prctile(bootDelPD,100-(alpha*100/2))];
-               if ~(CI(1)<0 && CI(2)>0) %if CI does not contain zero
+               if (CI(1)>0 || CI(2)<0) %if CI does not contain zero
                    sigPDChange(i) = true;
                end
             end

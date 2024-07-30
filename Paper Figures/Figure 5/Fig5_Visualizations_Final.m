@@ -366,7 +366,7 @@ fs = 14;
                    end
                end
                h = surf(X,Y,Z,colorMat);
-               set(h, 'FaceAlpha', ellAlpha)
+               %set(h, 'FaceAlpha', ellAlpha)
                shading faceted
                %plot3(u(:,1),u(:,2),u(:,3),'.','MarkerSize',20,'Color',pcmap(posture,:));
             

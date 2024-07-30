@@ -1,7 +1,7 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
+    saveFig = true;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 6';
     set(0, 'DefaultFigureRenderer', 'painters');
     
@@ -215,9 +215,11 @@ clear; clc; clf; close all
     ax = gca;
     xlim = ax.XLim; ylim = ax.YLim;
     %Diagonal Line
-    maxVal = max(horzcat(xlim,ylim));
+    
+    %maxVal = max(horzcat(xlim,ylim));
+    maxVal = 7;
     %minVal = min(horzcat(xlim,ylim));
-    minVal = 0.75
+    minVal = 0.75;
     plot([minVal ,maxVal],[minVal, maxVal],'--','LineWidth',2,'Color','k')
     %Line at 1
     ax = gca;
@@ -232,7 +234,7 @@ clear; clc; clf; close all
     set(gca,'fontname','arial'); set(gca,'fontsize',20);
     %ylabel('Normalized Error After Shift')
     %xlabel('Normalized Error Before Shift')
-    
+
 %% Get overall pct reduction for reporting in text
     for monkey = monkeyList
         monkey

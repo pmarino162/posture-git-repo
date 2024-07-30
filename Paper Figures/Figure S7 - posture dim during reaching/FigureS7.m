@@ -1,7 +1,7 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = true;
+    saveFig = false;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S7 - posture dim during reaching';
     set(0, 'DefaultFigureRenderer', 'painters');
 
@@ -27,7 +27,7 @@ for datasetList = {'E20210706'}
     %Get holdTrajStruct - align to trial end
     trialInclStates(1).inclStates = {{'state','Success with Reward','first',-200},{'state','Success with Reward','first',0}};
     holdTrajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);
-    % Keep postures 1-4 only for earl reaching
+    % Keep postures 2&7 only for earl reaching
     if strcmpi(dataset,'E20210706')
         trajStruct = trajStruct(ismember([trajStruct.posture],[2,7]));
         moveTrajStruct = moveTrajStruct(ismember([moveTrajStruct.posture],[2,7]));
@@ -53,21 +53,45 @@ for datasetList = {'E20210706'}
     %% dPCA Version
     [W,V,postureDims,targetDims,explVar,additionalVarExpl] = getPostureDPCADims(trajStruct,regularize,postureList,numPostures,targetList,numTargets,numChannels,minNumTimestamps);
     pDPCA = W(:,postureDims);
-    pDPCA = W(:,postureDims);
-    
+%     pDPCA = -1*pDPCA;
     
     %% Get marker axis 
+    targetID = [Data.targetData];
+    targetID = [targetID.targetID];
+    postureID = [Data.conditionData];
+    postureID = [postureID.postureID];
     switch dataset
+        case {'N20190226'}
+            target4Pos1Loc = [-22.8,68.7];
+            target8Pos2Loc = [157.1,-82.9];
+            targetAxis = (target4Pos1Loc-target8Pos2Loc)./norm(target4Pos1Loc-target8Pos2Loc);
+            targetAxisCenterLoc = target8Pos2Loc + (target4Pos1Loc-target8Pos2Loc)/2;
+        case {'R20200221'}
+            target4Pos1Loc = [47,87];
+            target8Pos2Loc = [235,-65];
+            targetAxis = (target4Pos1Loc-target8Pos2Loc)./norm(target4Pos1Loc-target8Pos2Loc);
+            targetAxisCenterLoc = target8Pos2Loc + (target4Pos1Loc-target8Pos2Loc)/2;
         case {'N20190226','R20200221'}
-            targetID = [Data.targetData];
-            targetID = [targetID.targetID];
 
-            target4Loc = Data(find(targetID==4,1,'first')).targetData.targetLoc(1,1:2);
-            target8Loc = Data(find(targetID==8,1,'first')).targetData.targetLoc(1,1:2);
-            targetAxis = (target4Loc-target8Loc)./norm(target4Loc-target8Loc);
+%             target4Loc = Data(find(targetID==4,1,'first')).targetData.targetLoc(1,1:2);
+%             target8Loc = Data(find(targetID==8,1,'first')).targetData.targetLoc(1,1:2);
+%             targetAxis = (target4Loc-target8Loc)./norm(target4Loc-target8Loc);
+%             
+            
+%             target4Pos1Loc = Data(find(targetID==4 & postureID==1,1,'first')).targetData.targetLoc(1,1:2) + ...
+%                 Data(find(targetID==4 & postureID==1,1,'first')).targetData.workspaceCenter(1,1:2);
+%             target8Pos2Loc = Data(find(targetID==8 & postureID==2,1,'first')).targetData.targetLoc(1,1:2) + ...
+%                 Data(find(targetID==8 & postureID==2,1,'first')).targetData.workspaceCenter(1,1:2);
+%             targetAxis = (target4Pos1Loc-target8Pos2Loc)./norm(target4Pos1Loc-target8Pos2Loc);
+%             targetAxisCenterLoc = target8Pos2Loc + (target4Pos1Loc-target8Pos2Loc)/2;
+            
         case{'E20210706'}
-            targetAxis = [1 0];
-            targetAxis = [-0.7071 0.7071];
+            target4Pos2Loc = Data(find(targetID==4 & postureID==2,1,'first')).targetData.targetLoc(1,1:2) + ...
+                Data(find(targetID==4 & postureID==2,1,'first')).targetData.workspaceCenter(1,1:2);
+            target8Pos7Loc = Data(find(targetID==8 & postureID==7,1,'first')).targetData.targetLoc(1,1:2) + ...
+                Data(find(targetID==8 & postureID==7,1,'first')).targetData.workspaceCenter(1,1:2);
+            targetAxis = (target4Pos2Loc-target8Pos7Loc)./norm(target4Pos2Loc-target8Pos7Loc);
+            targetAxisCenterLoc = target8Pos7Loc + (target4Pos2Loc-target8Pos7Loc)/2;
     end
     
 %% Project data onto relevant axes
@@ -80,7 +104,7 @@ for datasetList = {'E20210706'}
         moveTrajStruct(i).pPCA.timestamps = moveTrajStruct(i).avgZSmoothFR.timestamps;    
         moveTrajStruct(i).pDPCA.traj = moveTrajStruct(i).avgZSmoothFR.traj*pDPCA;
         moveTrajStruct(i).pDPCA.timestamps = moveTrajStruct(i).avgZSmoothFR.timestamps;      
-        moveTrajStruct(i).targetAxis.traj = moveTrajStruct(i).avgMarker.traj(:,1:2)*targetAxis';
+        moveTrajStruct(i).targetAxis.traj = (moveTrajStruct(i).avgMarker.traj(:,1:2)-targetAxisCenterLoc(:,1:2))*targetAxis';
         moveTrajStruct(i).targetAxis.timestamps = moveTrajStruct(i).avgMarker.timestamps;
              
         holdTrajStruct(i).avgPCA.traj = (holdTrajStruct(i).avgZSmoothFR.traj-Mu)*PCs;
@@ -88,7 +112,7 @@ for datasetList = {'E20210706'}
         holdTrajStruct(i).pPCA.timestamps = holdTrajStruct(i).avgZSmoothFR.timestamps;     
         holdTrajStruct(i).pDPCA.traj = holdTrajStruct(i).avgZSmoothFR.traj*pDPCA;
         holdTrajStruct(i).pDPCA.timestamps = holdTrajStruct(i).avgZSmoothFR.timestamps;      
-        holdTrajStruct(i).targetAxis.traj = holdTrajStruct(i).avgMarker.traj(:,1:2)*targetAxis';
+        holdTrajStruct(i).targetAxis.traj = (holdTrajStruct(i).avgMarker.traj(:,1:2)-targetAxisCenterLoc(:,1:2))*targetAxis';
         holdTrajStruct(i).targetAxis.timestamps = holdTrajStruct(i).avgMarker.timestamps;
         
         %Add all traces to struct
@@ -96,7 +120,7 @@ for datasetList = {'E20210706'}
             moveTrajStruct(i).allPCA(j).traj = (moveTrajStruct(i).allZSmoothFR(j).traj-Mu)*PCs;
             moveTrajStruct(i).allPPCA(j).traj = moveTrajStruct(i).allPCA(j).traj(:,1:numPCsToKeep)*pDims;
             moveTrajStruct(i).allPPCA(j).timestamps = moveTrajStruct(i).allZSmoothFR(j).timestamps;
-            moveTrajStruct(i).allTargetAxis(j).traj = moveTrajStruct(i).allMarker(j).traj(:,1:2)*targetAxis';
+            moveTrajStruct(i).allTargetAxis(j).traj = (moveTrajStruct(i).allMarker(j).traj(:,1:2)-targetAxisCenterLoc(:,1:2))*targetAxis';
             moveTrajStruct(i).allTargetAxis(j).timestamps = moveTrajStruct(i).allMarker(j).timestamps;         
             moveTrajStruct(i).allDPCA(j).traj = moveTrajStruct(i).allZSmoothFR(j).traj*pDPCA;
             moveTrajStruct(i).allDPCA(j).timestamps = moveTrajStruct(i).allZSmoothFR(j).timestamps;
@@ -195,56 +219,56 @@ subplot(2,1,2)
     end
     
 %% Plot correlation
-    plotInd = 1;
-    for plotPostureList = [2,7]
-        for plotTargetList = [4,8]
-    %         plotPostureList = 1;
-    %         plotTargetList = 8;
-            allData = zeros(1,2);
-            allDataInd = 1;
-            f = figure; hold on
-            f.Position = [200 200 f.Position(3)*corrFigScale f.Position(4)*corrFigScale];
-            for posture = plotPostureList
-                for target = plotTargetList
-                    trajStructInd = find([moveTrajStruct.posture]==posture & [moveTrajStruct.target]==target);
-                    for i = 1:size(trajStruct(trajStructInd).allZSmoothFR,2)
-                        time = moveTrajStruct(trajStructInd).allPPCA(i).timestamps;
-                        timeMask = time >= 0;
-                        neuralTraj = moveTrajStruct(trajStructInd).allPPCA(i).traj(timeMask,1);
-                        handTraj = moveTrajStruct(trajStructInd).allTargetAxis(i).traj(timeMask,1);
-                        plot(neuralTraj,handTraj,'.k','MarkerSize',corrDotSize);
-                        numPts = sum(timeMask);
-                        allData(allDataInd:allDataInd+numPts-1,1) = neuralTraj;
-                        allData(allDataInd:allDataInd+numPts-1,2) = handTraj;
-                        allDataInd = allDataInd + numPts;
-                    end
-                end
-            end
-            xlabel('Posture Dim 1 (a.u.)')
-            ylabel('Hand Pos (mm)')
-
-            [R,P] = corrcoef(allData,'Alpha',0.05);
-            ax = gca;
-            xlim = ax.XLim;
-            ylim = ax.YLim;
-            xrange = xlim(2)-xlim(1);
-            xmid = xrange/2;
-            yrange = ylim(2)-ylim(1);
-            ymid = yrange/2;
-             ax.XTick = [ax.XTick(1) ax.XTick(end)];
-              ax.YTick = [ax.YTick(1) ax.YTick(end)];
-            text(xlim(1)+xrange*.8,ylim(1)+yrange*.8,['\rho = ',num2str(R(1,2)),newline,'p = ',num2str(P(1,2))],'FontSize',corrFs)
-            ax.FontName = 'arial';
-            ax.FontSize = corrFs;
-
-
-            if saveFig
-                saveas(gcf,fullfile(saveDir,[dataset,'ind_',num2str(plotInd),'_PCA_Corr.svg']));
-            end
-
-            plotInd = plotInd + 1;
-        end
-    end
+%     plotInd = 1;
+%     for plotPostureList = [2,7]
+%         for plotTargetList = [4,8]
+%     %         plotPostureList = 1;
+%     %         plotTargetList = 8;
+%             allData = zeros(1,2);
+%             allDataInd = 1;
+%             f = figure; hold on
+%             f.Position = [200 200 f.Position(3)*corrFigScale f.Position(4)*corrFigScale];
+%             for posture = plotPostureList
+%                 for target = plotTargetList
+%                     trajStructInd = find([moveTrajStruct.posture]==posture & [moveTrajStruct.target]==target);
+%                     for i = 1:size(trajStruct(trajStructInd).allZSmoothFR,2)
+%                         time = moveTrajStruct(trajStructInd).allPPCA(i).timestamps;
+%                         timeMask = time >= 0;
+%                         neuralTraj = moveTrajStruct(trajStructInd).allPPCA(i).traj(timeMask,1);
+%                         handTraj = moveTrajStruct(trajStructInd).allTargetAxis(i).traj(timeMask,1);
+%                         plot(neuralTraj,handTraj,'.k','MarkerSize',corrDotSize);
+%                         numPts = sum(timeMask);
+%                         allData(allDataInd:allDataInd+numPts-1,1) = neuralTraj;
+%                         allData(allDataInd:allDataInd+numPts-1,2) = handTraj;
+%                         allDataInd = allDataInd + numPts;
+%                     end
+%                 end
+%             end
+%             xlabel('Posture Dim 1 (a.u.)')
+%             ylabel('Hand Pos (mm)')
+% 
+%             [R,P] = corrcoef(allData,'Alpha',0.05);
+%             ax = gca;
+%             xlim = ax.XLim;
+%             ylim = ax.YLim;
+%             xrange = xlim(2)-xlim(1);
+%             xmid = xrange/2;
+%             yrange = ylim(2)-ylim(1);
+%             ymid = yrange/2;
+%              ax.XTick = [ax.XTick(1) ax.XTick(end)];
+%               ax.YTick = [ax.YTick(1) ax.YTick(end)];
+%             text(xlim(1)+xrange*.8,ylim(1)+yrange*.8,['\rho = ',num2str(R(1,2)),newline,'p = ',num2str(P(1,2))],'FontSize',corrFs)
+%             ax.FontName = 'arial';
+%             ax.FontSize = corrFs;
+% 
+% 
+%             if saveFig
+%                 saveas(gcf,fullfile(saveDir,[dataset,'ind_',num2str(plotInd),'_PCA_Corr.svg']));
+%             end
+% 
+%             plotInd = plotInd + 1;
+%         end
+%     end
     
 %Posture axis projection
 f = figure; hold on
@@ -318,53 +342,53 @@ subplot(2,1,2)
         saveas(gcf,fullfile(saveDir,[dataset,'_dPCA_Traces.svg']));
     end
     
-%% Plot correlation
-    plotInd = 1;
-    for plotPostureList = [2,7]
-        for plotTargetList = [4,8]
-    allData = zeros(1,2);
-    allDataInd = 1;
-    f = figure; hold on
-    f.Position = [200 200 f.Position(3)*corrFigScale f.Position(4)*corrFigScale];
-    for posture = plotPostureList
-        for target = plotTargetList
-            trajStructInd = find([moveTrajStruct.posture]==posture & [moveTrajStruct.target]==target);
-            for i = 1:size(trajStruct(trajStructInd).allZSmoothFR,2)
-                time = moveTrajStruct(trajStructInd).allPPCA(i).timestamps;
-                timeMask = time >= 0;
-                neuralTraj = moveTrajStruct(trajStructInd).allDPCA(i).traj(timeMask,1);
-                handTraj = moveTrajStruct(trajStructInd).allTargetAxis(i).traj(timeMask,1);
-                plot(neuralTraj,handTraj,'.k','MarkerSize',corrDotSize);
-                numPts = sum(timeMask);
-                allData(allDataInd:allDataInd+numPts-1,1) = neuralTraj;
-                allData(allDataInd:allDataInd+numPts-1,2) = handTraj;
-                allDataInd = allDataInd + numPts;
-            end
-        end
-    end
-    xlabel('Posture Dim 1 (a.u.)')
-    ylabel('Hand Pos (mm)')
-
-    [R,P] = corrcoef(allData,'Alpha',0.05);
-    ax = gca;
-    xlim = ax.XLim;
-    ylim = ax.YLim;
-    xrange = xlim(2)-xlim(1);
-    xmid = xrange/2;
-    yrange = ylim(2)-ylim(1);
-    ymid = yrange/2;
-     ax.XTick = [ax.XTick(1) ax.XTick(end)];
-      ax.YTick = [ax.YTick(1) ax.YTick(end)];
-    text(xlim(1)+xrange*.8,ylim(1)+yrange*.8,['\rho = ',num2str(R(1,2)),newline,'p = ',num2str(P(1,2))],'FontSize',corrFs)
-    ax.FontName = 'arial';
-    ax.FontSize = corrFs;
-    
-    if saveFig
-        saveas(gcf,fullfile(saveDir,[dataset,'ind_',num2str(plotInd),'_dPCA_Corr.svg']));
-    end
-    plotInd = plotInd + 1;
-        end
-    end
-    
+% %% Plot correlation
+%     plotInd = 1;
+%     for plotPostureList = [2,7]
+%         for plotTargetList = [4,8]
+%     allData = zeros(1,2);
+%     allDataInd = 1;
+%     f = figure; hold on
+%     f.Position = [200 200 f.Position(3)*corrFigScale f.Position(4)*corrFigScale];
+%     for posture = plotPostureList
+%         for target = plotTargetList
+%             trajStructInd = find([moveTrajStruct.posture]==posture & [moveTrajStruct.target]==target);
+%             for i = 1:size(trajStruct(trajStructInd).allZSmoothFR,2)
+%                 time = moveTrajStruct(trajStructInd).allPPCA(i).timestamps;
+%                 timeMask = time >= 0;
+%                 neuralTraj = moveTrajStruct(trajStructInd).allDPCA(i).traj(timeMask,1);
+%                 handTraj = moveTrajStruct(trajStructInd).allTargetAxis(i).traj(timeMask,1);
+%                 plot(neuralTraj,handTraj,'.k','MarkerSize',corrDotSize);
+%                 numPts = sum(timeMask);
+%                 allData(allDataInd:allDataInd+numPts-1,1) = neuralTraj;
+%                 allData(allDataInd:allDataInd+numPts-1,2) = handTraj;
+%                 allDataInd = allDataInd + numPts;
+%             end
+%         end
+%     end
+%     xlabel('Posture Dim 1 (a.u.)')
+%     ylabel('Hand Pos (mm)')
+% 
+%     [R,P] = corrcoef(allData,'Alpha',0.05);
+%     ax = gca;
+%     xlim = ax.XLim;
+%     ylim = ax.YLim;
+%     xrange = xlim(2)-xlim(1);
+%     xmid = xrange/2;
+%     yrange = ylim(2)-ylim(1);
+%     ymid = yrange/2;
+%      ax.XTick = [ax.XTick(1) ax.XTick(end)];
+%       ax.YTick = [ax.YTick(1) ax.YTick(end)];
+%     text(xlim(1)+xrange*.8,ylim(1)+yrange*.8,['\rho = ',num2str(R(1,2)),newline,'p = ',num2str(P(1,2))],'FontSize',corrFs)
+%     ax.FontName = 'arial';
+%     ax.FontSize = corrFs;
+%     
+%     if saveFig
+%         saveas(gcf,fullfile(saveDir,[dataset,'ind_',num2str(plotInd),'_dPCA_Corr.svg']));
+%     end
+%     plotInd = plotInd + 1;
+%         end
+%     end
+%     
     
 end
