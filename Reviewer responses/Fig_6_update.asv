@@ -1,0 +1,476 @@
+clear; clc; clf; close all
+
+%% Setup saveFig   
+    saveFig = false;
+    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\Reviewer responses';
+    set(0, 'DefaultFigureRenderer', 'painters');
+
+%% Set parameters
+   numPCsToKeep = 10;    %Num PCs to project data into before analysis
+   numIterations = 20;
+   task = 'BCI'; %Task to analyze ('BCI', 'Iso', or 'Reach')
+   statsBinWidth = 0.1; %Difference before shift bin width for stats
+   
+%% Set up monkey task trial counts struct (determines how many trials to use for each monkey and task)
+    trialsToUseStruct = struct('monkey',[],'task',[],'trialsToUse',[]);
+    trialsToUseStruct(1) = struct('monkey','E','task','BCI','trialsToUse',18);
+    trialsToUseStruct(2) = struct('monkey','N','task','BCI','trialsToUse',28);
+    trialsToUseStruct(3) = struct('monkey','R','task','BCI','trialsToUse',18);
+    trialsToUseStruct(4) = struct('monkey','E','task','Iso','trialsToUse',38);
+    trialsToUseStruct(5) = struct('monkey','E','task','Reach','trialsToUse',14);
+    trialsToUseStruct(6) = struct('monkey','N','task','Reach','trialsToUse',32);
+    trialsToUseStruct(7) = struct('monkey','R','task','Reach','trialsToUse',44);
+   
+%% Datasets to include in analysis 
+    reachDatasetList = {'E20210706','E20210707','E20210708',...
+        'N20190222','N20190226','N20190227','N20190228','N20190307'...
+        'R20200221','R20200222'};    
+    bciDatasetList = {'E20200316','E20200317','E20200318','E20200319','N20171215','N20180221','R20201020','R20201021'};         
+    isoDatasetList = {'E20200116','E20200117','E20200120'};    
+
+%% Perform all comparisons for all sessions. Save to resultStruct
+    if strcmp(task,'BCI')
+        taskDatasetList = bciDatasetList;
+    elseif strcmp(task,'Iso')
+        taskDatasetList = isoDatasetList;
+    elseif strcmp(task,'Reach')
+        taskDatasetList = reachDatasetList;
+    end
+
+    resultStruct = struct('monkey',[],'dataset',[],'result',[]);
+    structInd = 1;
+    
+    for datasetList = taskDatasetList
+        %% Set up trajStruct (per session)
+        %Load data
+        dataset = datasetList{1,1};
+        monkey = dataset(1);
+        [Data,zScoreParams] = loadData(dataset);
+        [Data] = removeShortBCIandIsoTrials(Data,dataset);
+        %Get trajStruct
+        [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
+        trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',false);  
+        %Project all data down to top PCs
+        [allTraj] = collectAllAvgTraj(trajStruct);
+        [trajStruct] = projectToTopPCs(allTraj,trajStruct,numPCsToKeep);
+        %Remove any conditions for which there weren't enough trials
+        trialsToUse = trialsToUseStruct(strcmp({trialsToUseStruct.monkey},monkey) & strcmp({trialsToUseStruct.task},task)).trialsToUse;
+        [numCondTrials] = getNumCondTrials(trajStruct,'showHist',false);         
+        trajStruct = trajStruct(numCondTrials >= trialsToUse);    
+        %get trajStructDims
+        [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct);
+        %Get minimum number of condition trials and timestamps
+        [minNumCondTrials] = getMinNumCondTrials(trajStruct);
+        [minNumTimestamps] = getMinNumTimestamps(trajStruct); 
+                
+        %% Preallocate sessionResultStruct
+        sessionResultStruct = struct('predictedPosture',[],'predictedTarget',[],'predictorPosture',[],'predictorTarget',[],... 
+            'errorBeforeShift',[],'errorAfterShift',[],'normErrorBeforeShift',[],'normErrorAfterShift',[],...
+            'R2BeforeShift',[],'R2AfterShift',[],'pctChange',[]);
+        sessionResultStructInd = 1;
+        for predictedPosture = postureList
+            withinPostureTargetList = unique([trajStruct([trajStruct.posture]==predictedPosture).target]);       
+            for predictedTarget = withinPostureTargetList
+                % Get other postures for same target
+                for predictorPosture = postureList(postureList>predictedPosture) %In this for loop, predictorTarget=predictedTarget
+                    if any([trajStruct.posture]==predictorPosture & [trajStruct.target]==predictedTarget)
+                        sessionResultStruct = preallocateSessionResultStructRow(sessionResultStruct, sessionResultStructInd, predictedPosture, predictedTarget, predictorPosture, predictedTarget, numIterations);
+                        sessionResultStructInd = sessionResultStructInd + 1;
+                    end
+                end
+                % Get other targets for same posture
+                for predictorTarget = withinPostureTargetList(withinPostureTargetList>predictedTarget) %In this loop, predictorPosture=predictedPosture
+                    if any([trajStruct.posture]==predictedPosture & [trajStruct.target]==predictorTarget)
+                        sessionResultStruct = preallocateSessionResultStructRow(sessionResultStruct, sessionResultStructInd, predictedPosture, predictedTarget, predictedPosture, predictorTarget, numIterations);
+                        sessionResultStructInd = sessionResultStructInd + 1;
+                    end
+                end
+            end
+        end
+
+        %% Do computation (per session)
+        for iteration = 1:numIterations
+            %Split trajStruct into two groups
+            [trajStruct1,trajStruct2] = splitDataforCV(trajStruct,trialsToUse,binWidth); 
+            %Make every comparison
+            for i = 1:size(sessionResultStruct,2)
+                predictedPosture = sessionResultStruct(i).predictedPosture;
+                predictedTarget = sessionResultStruct(i).predictedTarget;
+                predictorPosture = sessionResultStruct(i).predictorPosture;
+                predictorTarget = sessionResultStruct(i).predictorTarget;
+                sessionResultStruct = makeComparisonAndAddToSessionResultStruct(sessionResultStruct, trajStruct1, trajStruct2, predictedPosture, predictedTarget, predictorPosture, predictorTarget, minNumTimestamps, iteration);
+            end
+        end
+
+        %Compute overall means
+        for sessionResultStructInd = 1:numel(sessionResultStruct)
+           %error
+           sessionResultStruct(sessionResultStructInd).meanErrorBeforeShift = mean([sessionResultStruct(sessionResultStructInd).errorBeforeShift]);
+           sessionResultStruct(sessionResultStructInd).meanErrorAfterShift = mean([sessionResultStruct(sessionResultStructInd).errorAfterShift]);
+           %normalized error 
+           sessionResultStruct(sessionResultStructInd).meanNormErrorBeforeShift = mean([sessionResultStruct(sessionResultStructInd).normErrorBeforeShift]);
+           sessionResultStruct(sessionResultStructInd).meanNormErrorAfterShift = mean([sessionResultStruct(sessionResultStructInd).normErrorAfterShift]);    
+           %pctChange
+           sessionResultStruct(sessionResultStructInd).meanPctChange = mean([sessionResultStruct(sessionResultStructInd).pctChange]);
+        end
+       
+        %Add results to resultStruct
+        resultStruct(structInd).dataset = dataset;
+        resultStruct(structInd).monkey = dataset(1);
+        resultStruct(structInd).result = sessionResultStruct;
+        structInd = structInd + 1;
+    end
+
+%% Get Monkey List from resultStruct
+    for i = 1:numel(resultStruct)
+        resultMonkeyList{i} = resultStruct(i).monkey;
+    end
+    monkeyList = unique(resultMonkeyList);
+    numMonkeys = numel(monkeyList);
+   
+%% Combine all results across sessions within each monkey. Compute 'diffBetweenGroups' and run t-test
+    allMonkeyComparisonStruct = struct('monkey',[],'allMonkeyMeanNormErrorBeforeShift',[],'allMonkeyMeanNormErrorAfterShift',[],'allMonkeyGroup',[],'allMonkeyDiffBetweenGroups',[],'p',[],'h',[]);
+    monkeyInd = 1;
+    for monkey = monkeyList
+        allMonkeyMeanNormErrorBeforeShift = [];
+        allMonkeyMeanNormErrorAfterShift = [];
+        allMonkeyGroup = [];
+        allMonkeyDiffBetweenGroups = [];
+        
+        tempResultStruct = resultStruct(strcmp(resultMonkeyList,monkey{1,1}));
+        for i = 1:size(tempResultStruct,2)
+            % Get session result
+            result = tempResultStruct(i).result; 
+            meanNormErrorBeforeShift = [result.meanNormErrorBeforeShift];
+            meanNormErrorAfterShift = [result.meanNormErrorAfterShift];
+            
+            % Get group numbers 1 = across posture, 2 = smallest target comparison, 0 = all else
+            group = zeros(1, length(result));
+            group([result.predictedTarget]==[result.predictorTarget]) = 1;
+            if ismember(resultStruct(i).dataset, isoDatasetList)
+                group(getIndicesOfWithinPostureAngleComparisons(result, 180)) = 2;
+            else
+                group(getIndicesOfWithinPostureAngleComparisons(result, 45)) = 2;
+            end
+
+            % Get before and after shift errors for each group
+            acrossPostureBeforeShift = meanNormErrorBeforeShift(group==1);
+            acrossPostureAfterShift = meanNormErrorAfterShift(group==1);
+            acrossTargetBeforeShift = meanNormErrorBeforeShift(group==2);
+            acrossTargetAfterShift = meanNormErrorAfterShift(group==2);
+
+            %Set up bins
+            maxBeforeShift = max([acrossPostureBeforeShift, acrossTargetBeforeShift]);
+            numBins = ceil(maxBeforeShift/statsBinWidth);
+            binEdges = zeros(1, numBins+1);
+            for bin = 1:numBins
+                binEdges(bin+1) = binEdges(bin) + statsBinWidth;
+            end
+
+            %Bin after shift points based on before shift, take means, get difference between groups, save
+            diffBetweenGroups = [];
+            for bin = 1:numBins
+                binAcrossPostureAfterShift = acrossPostureAfterShift(acrossPostureBeforeShift >= binEdges(bin) & acrossPostureBeforeShift < binEdges(bin + 1));
+                binAcrossTargetAfterShift = acrossTargetAfterShift(acrossTargetBeforeShift >= binEdges(bin) & acrossTargetBeforeShift < binEdges(bin + 1));
+                if ~isempty(binAcrossPostureAfterShift) && ~isempty(binAcrossTargetAfterShift)
+                    diffBetweenGroups = [diffBetweenGroups, (mean(binAcrossTargetAfterShift) - mean(binAcrossPostureAfterShift))];
+                end
+            end
+
+            % Add all to vectors to combine
+            allMonkeyMeanNormErrorBeforeShift = [allMonkeyMeanNormErrorBeforeShift, meanNormErrorBeforeShift];
+            allMonkeyMeanNormErrorAfterShift = [allMonkeyMeanNormErrorAfterShift, meanNormErrorAfterShift];
+            allMonkeyGroup = [allMonkeyGroup, group];
+            allMonkeyDiffBetweenGroups = [allMonkeyDiffBetweenGroups, diffBetweenGroups];
+        end
+
+    
+        % Run stats
+        [h, p] = ttest(allMonkeyDiffBetweenGroups);
+        
+        % Save to struct
+        allMonkeyComparisonStruct(monkeyInd).monkey = monkey{1,1};
+        allMonkeyComparisonStruct(monkeyInd).allMonkeyMeanNormErrorBeforeShift = allMonkeyMeanNormErrorBeforeShift;
+        allMonkeyComparisonStruct(monkeyInd).allMonkeyMeanNormErrorAfterShift = allMonkeyMeanNormErrorAfterShift;
+        allMonkeyComparisonStruct(monkeyInd).allMonkeyGroup = allMonkeyGroup;
+        allMonkeyComparisonStruct(monkeyInd).allMonkeyDiffBetweenGroups = allMonkeyDiffBetweenGroups;
+        allMonkeyComparisonStruct(monkeyInd).h = h;
+        allMonkeyComparisonStruct(monkeyInd).p = p;
+        monkeyInd = monkeyInd + 1;
+    end
+    
+    
+%% Plot results (per monkey)
+
+
+%% Plot results (combined across monkeys)
+figure
+hold on;
+% Plot all points
+for monkey = monkeyList
+    
+    tempComparisonStruct = allMonkeyComparisonStruct(strcmp({allMonkeyComparisonStruct.monkey},monkey{1,1}));
+    meanNormErrorBeforeShift = tempComparisonStruct.allMonkeyMeanNormErrorBeforeShift;
+    meanNormErrorAfterShift = tempComparisonStruct.allMonkeyMeanNormErrorAfterShift;
+    group = tempComparisonStruct.allMonkeyGroup;
+        
+    switch monkey{1,1}
+        case 'E'
+           scatter(meanNormErrorBeforeShift(group==1),meanNormErrorAfterShift(group==1),25,'o',...
+               'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
+               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);   
+           
+           scatter(meanNormErrorBeforeShift(group==2),meanNormErrorAfterShift(group==2),25,'o',...
+               'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
+               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
+           
+        case 'N'
+           scatter(meanNormErrorBeforeShift(group==1),meanNormErrorAfterShift(group==1),30,'d',...
+               'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
+               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
+           
+           scatter(meanNormErrorBeforeShift(group==2),meanNormErrorAfterShift(group==2),30,'d',...
+               'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
+               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
+           
+        case 'R'
+           scatter(meanNormErrorBeforeShift(group==1),meanNormErrorAfterShift(group==1),55,'x',...
+               'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
+               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
+           
+           scatter(meanNormErrorBeforeShift(group==2),meanNormErrorAfterShift(group==2),55,'x',...
+               'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
+               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
+    end
+end
+
+% Add overall means
+for monkey = monkeyList
+    
+    tempComparisonStruct = allMonkeyComparisonStruct(strcmp({allMonkeyComparisonStruct.monkey},monkey{1,1}));
+    meanNormErrorBeforeShift = tempComparisonStruct.allMonkeyMeanNormErrorBeforeShift;
+    meanNormErrorAfterShift = tempComparisonStruct.allMonkeyMeanNormErrorAfterShift;
+    group = tempComparisonStruct.allMonkeyGroup;
+    
+	switch monkey{1,1}
+           case 'E'
+                scatter(mean(meanNormErrorBeforeShift(group==1)),mean(meanNormErrorAfterShift(group==1)),275,'o',...
+                    'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
+                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);  
+                
+                scatter(mean(meanNormErrorBeforeShift(group==2)),mean(meanNormErrorAfterShift(group==2)),275,'o',...
+                    'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
+                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);  
+                
+           case 'N'           
+                scatter(mean(meanNormErrorBeforeShift(group==1)),mean(meanNormErrorAfterShift(group==1)),275,'d',...
+                    'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[1 1 1],...
+                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);   
+           case 'R'
+                scatter(mean(allMonkeyComparisons(:,1)),mean(allMonkeyComparisons(:,2)),325,'x',...
+                    'MarkerEdgeColor',[1 0 0],'MarkerFaceColor',[0 0 0],...
+                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);   
+       end
+end
+
+
+%% Archive
+    monkeyInd = 1;
+    for monkey = monkeyList
+       
+        allMonkeyMeanNormErrorBeforeShift = [];
+        allMonkeyMeanNormErrorAfterShift = [];
+        allMonkeyGroup = [];
+       
+       
+       allMonkeyComparisons = NaN(1,2);
+       allMonkeyComparisonInd = 1;
+       
+       tempResultStruct = resultStruct(strcmp(resultMonkeyList,monkey{1,1}));
+       
+       for session = 1:numel(tempResultStruct)
+           result = tempResultStruct(session).result;
+           
+           %Get before shift and after shift errors          
+           meanNormErrorBeforeShift = [result.meanNormErrorBeforeShift];
+           meanNormErrorAfterShift = [result.meanNormErrorAfterShift];
+           
+           allMonkeyMeanNormErrorBeforeShift = horzcat(allMonkeyMeanNormErrorBeforeShift, meanNormErrorBeforeShift);
+           allMonkeyMeanNormErrorAfterShift = horzcat(allMonkeyMeanNormErrorAfterShift, meanNormErrorAfterShift);
+           
+           %Group variable: 1 = across posture, 2 = 45 degree target (w/in
+           %posture), 3 = 90 degree target (w/in posture). For iso force,
+           % 2 = 180 degree target (w/in posture)
+           group = zeros(1, length(result));
+           group([result.predictedTarget]==[result.predictorTarget]) = 1;
+           if ismember(tempResultStruct(session).dataset, isoDatasetList)
+               group(getIndicesOfWithinPostureAngleComparisons(result, 180)) = 2;
+           else
+               group(getIndicesOfWithinPostureAngleComparisons(result, 45)) = 2;
+           end
+           allMonkeyGroup = horzcat(allMonkeyGroup, group);
+           
+       end
+           f=figure; hold on;
+           %plot([minVal ,maxVal],[minVal, maxVal],'--','LineWidth',2,'Color','k')
+        if ismember(tempResultStruct(session).dataset, isoDatasetList)
+            scatterhist(allMonkeyMeanNormErrorBeforeShift(allMonkeyGroup~=0),allMonkeyMeanNormErrorAfterShift(allMonkeyGroup~=0),'Group',allMonkeyGroup(allMonkeyGroup~=0),'Kernel','on','Location','SouthEast',...
+                'Direction','out','Color','kbr','LineStyle',{'-','-.'},...
+                'LineWidth',[2,2],'Marker','+od','MarkerSize',[4,5]);
+            legend('Across posture','Across target (180 deg)')
+        else
+            scatterhist(allMonkeyMeanNormErrorBeforeShift(allMonkeyGroup~=0),allMonkeyMeanNormErrorAfterShift(allMonkeyGroup~=0),'Group',allMonkeyGroup(allMonkeyGroup~=0),'Kernel','on','Location','SouthEast',...
+                'Direction','out','Color','kbr','LineStyle',{'-','-.',':'},...
+                'LineWidth',[2,2,2],'Marker','+od','MarkerSize',[4,5,6]);
+            legend('Across posture','Across target (45 deg)', 'Across target (90 deg)')
+        end
+        %xlim([0,7])
+        %ylim([0,7])
+        
+        %minVal = 0;
+        %maxVal = 7;
+        
+        
+        xlabel('Error before shift (normalized)')
+        ylabel('Error after shift (normalized)')
+        title(['Monkey ' monkey])
+%            %Plot normalized error
+%            for comparison = 1:numel(result)
+%                %Get before shift and after shift errors
+%                normErrorBeforeShiftMean = result(comparison).meanNormErrorBeforeShift;
+%                normErrorAfterShiftMean = result(comparison).meanNormErrorAfterShift;
+%                %Add to allMonkeyComparisons
+%                allMonkeyComparisons(allMonkeyComparisonInd,:) = [normErrorBeforeShiftMean,normErrorAfterShiftMean];
+%                allMonkeyComparisonInd = allMonkeyComparisonInd + 1;
+%                %Plot scatter
+%                switch monkeyInd
+%                    case 1
+%                        scatter(normErrorBeforeShiftMean,normErrorAfterShiftMean,25,'o',...
+%                            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
+%                            'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);    
+%                    case 2
+%                        scatter(normErrorBeforeShiftMean,normErrorAfterShiftMean,30,'d',...
+%                            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
+%                            'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
+%                    case 3
+%                        scatter(normErrorBeforeShiftMean,normErrorAfterShiftMean,55,'x',...
+%                            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
+%                            'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
+%                end
+%            end
+%        end
+%        allMonkeyComparisonsStruct(monkeyInd).monkey = monkey;
+%        allMonkeyComparisonsStruct(monkeyInd).allMonkeyComparisons = allMonkeyComparisons;
+%        monkeyInd = monkeyInd + 1;
+    end
+%% Plot results (across monkeys)
+
+
+%% Get overall pct reduction for reporting in text
+    for monkey = monkeyList
+        monkey
+        tempResultStruct = resultStruct(strcmp(resultMonkeyList,monkey{1,1}));
+        pctChangeDist = [];
+        pctChangeDist_2 = [];
+        for session = 1:numel(tempResultStruct)
+            result = tempResultStruct(session).result;
+            %pctChangeDist = [pctChangeDist,result.pctChange];
+            pctChangeDist = [pctChangeDist,result.meanPctChange];
+            %pc
+        end
+        meanPctReduction = mean(pctChangeDist)
+        SEMPctReduction = std(pctChangeDist)/sqrt(length(pctChangeDist))
+        figure
+        histogram(pctChangeDist)
+    end
+
+%% Local functions   
+    %Get optimal alpha
+    function alpha = getOptimalAlpha(traj1,traj2,numPts)
+        numDims = size(traj1,2);
+        alpha = NaN(1,numDims);
+        for dim = 1:numDims
+            alpha(dim) = (1/numPts)*sum(traj1(1:numPts,dim)-traj2(1:numPts,dim));
+        end
+    end
+    
+    %Get mean dist
+    function dist = getMeanDist(traj1,traj2,numPts)
+        dist = 0;
+        for i = 1:numPts
+            dist = vecnorm(traj1(i,:)-traj2(i,:)) + dist;
+        end
+        dist = dist/numPts;
+    end
+
+    %Preallocate result struct row
+    function sessionResultStruct = preallocateSessionResultStructRow(sessionResultStruct, sessionResultStructInd, predictedPosture, predictedTarget, predictorPosture, predictorTarget, numIterations)
+        sessionResultStruct(sessionResultStructInd).predictedPosture = predictedPosture;
+        sessionResultStruct(sessionResultStructInd).predictedTarget = predictedTarget;
+        sessionResultStruct(sessionResultStructInd).predictorPosture = predictorPosture;
+        sessionResultStruct(sessionResultStructInd).predictorTarget = predictorTarget;
+        sessionResultStruct(sessionResultStructInd).errorBeforeShift = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).errorAfterShift = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).baselineError = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).normErrorBeforeShift = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).normErrorAfterShift = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).pctChange = NaN(1,numIterations);
+    end
+    
+    %Make comparison and add to session result struct
+    function sessionResultStruct = makeComparisonAndAddToSessionResultStruct(sessionResultStruct, trajStruct1, trajStruct2, predictedPosture, predictedTarget, predictorPosture, predictorTarget, numPts, iteration)
+        predictedCond = find([trajStruct1.target]==predictedTarget & [trajStruct1.posture]==predictedPosture);
+        predictorCond = find([trajStruct1.target]==predictorTarget & [trajStruct1.posture]==predictorPosture);
+        %Compute comparison difference 
+        traj1 = trajStruct1(predictedCond).avgPCA.traj;%Predicted traj
+        traj2 = trajStruct1(predictorCond).avgPCA.traj;%Comparison traj
+        baselineTraj = trajStruct2(predictedCond).avgPCA.traj;%Used for normalization
+        unshiftTraj2 = traj2;
+        if min([size(traj1,1),size(traj2,1)]) < numPts
+            tempNumPts = min([size(traj1,1),size(traj2,1)]);
+        else
+            tempNumPts = numPts;
+        end
+        alpha = getOptimalAlpha(traj1,traj2,tempNumPts);
+        shiftTraj2 = traj2 + alpha;  
+        alpha = getOptimalAlpha(traj1,baselineTraj,tempNumPts);
+        shiftBaselineTraj = baselineTraj + alpha;
+        %Compute absolute and normalized errors
+        errorBeforeShift = getMeanDist(traj1,unshiftTraj2,tempNumPts);
+        errorAfterShift = getMeanDist(traj1,shiftTraj2,tempNumPts);
+        baselineError = getMeanDist(traj1,shiftBaselineTraj,tempNumPts);
+        normErrorBeforeShift = errorBeforeShift./baselineError;
+        normErrorAfterShift = errorAfterShift./baselineError;
+        %Store results in sessionResultStruct
+        sessionResultStructInd = find([sessionResultStruct.predictedPosture]==predictedPosture & ...
+            [sessionResultStruct.predictedTarget]==predictedTarget & [sessionResultStruct.predictorPosture]==predictorPosture & ...
+            [sessionResultStruct.predictorTarget]==predictorTarget);
+        sessionResultStruct(sessionResultStructInd).errorBeforeShift(iteration) = errorBeforeShift;
+        sessionResultStruct(sessionResultStructInd).errorAfterShift(iteration) = errorAfterShift;     
+        sessionResultStruct(sessionResultStructInd).normErrorBeforeShift(iteration) = normErrorBeforeShift;
+        sessionResultStruct(sessionResultStructInd).normErrorAfterShift(iteration) = normErrorAfterShift;
+        sessionResultStruct(sessionResultStructInd).baselineError(iteration) = baselineError;
+        sessionResultStruct(sessionResultStructInd).pctChange(iteration) = 100*(((errorAfterShift-baselineError)-(errorBeforeShift-baselineError))/(errorBeforeShift-baselineError));
+    end
+    
+    %Get indices of within posture target comparisons of particular angle
+    function indices = getIndicesOfWithinPostureAngleComparisons(result, angle)
+        % Unpack
+        predictedPosture = [result.predictedPosture];
+        predictedTarget = [result.predictedTarget];
+        predictorPosture = [result.predictorPosture];
+        predictorTarget = [result.predictorTarget];
+
+        % Convert to angle
+        predictedTargetAngles = 45*(predictedTarget-1);
+        predictorTargetAngles = 45*(predictorTarget-1);
+        
+        % Compute the circular difference in target angles
+        diffAngles = mod(abs(predictedTargetAngles - predictorTargetAngles), 360);
+
+        % Adjust differences greater than 180
+        diffAngles(diffAngles > 180) = 360 - diffAngles(diffAngles > 180);
+
+        % Find indices where postures are equal and angle difference matches the input
+        indices = find(predictedPosture == predictorPosture & diffAngles == angle);  
+    end

@@ -31,7 +31,7 @@ clear; clc; clf; close all
     for datasetList = [reachDatasetList,bciDatasetList,isoDatasetList]
         %% Set up trajStruct
         %Load data
-        dataset = datasetList{1,1};
+        dataset = datasetList{1,1}
         [Data,zScoreParams] = loadData(dataset);
         [Data] = removeShortBCIandIsoTrials(Data,dataset);
         %Get trajStruct

@@ -14,7 +14,7 @@ clear; clc; clf; close all
 
 %% Run loop for each dataset      
     %Load data
-    dataset = 'E20210901';%'E20200318';
+    dataset = 'E20200318';%'E20210901';%'E20200318';
     [Data,zScoreParams] = loadData(dataset);
     [Data] = removeShortBCIandIsoTrials(Data,dataset);
     %Get trajStruct

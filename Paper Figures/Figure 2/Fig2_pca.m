@@ -1,7 +1,7 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = true;
+    saveFig = false;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 2';
     set(0, 'DefaultFigureRenderer', 'painters');
 

@@ -1,12 +1,12 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = true;
+    saveFig = false;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 2';
     set(0, 'DefaultFigureRenderer', 'painters');
 
 %% Load data
-    dataset = 'E20200316';
+    dataset = 'E20200318';
     [Data,zScoreParams] = loadData(dataset);
     [Data] = removeShortBCIandIsoTrials(Data,dataset);
     
@@ -83,7 +83,7 @@ clear; clc; clf; close all
     targetUnits = find([anovaResultStruct.tuning]==1);
     postureUnits = find([anovaResultStruct.tuning]==2);
     chList = [3,34,49];
-    
+    chList = [85,80,47];
 %% Plot selected units 
 %chList = [5,46,87];
     %Plot all postures for target 1
