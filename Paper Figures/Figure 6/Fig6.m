@@ -1,7 +1,7 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = true;
+    saveFig = false;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 6';
     set(0, 'DefaultFigureRenderer', 'painters');
     
@@ -20,7 +20,7 @@ clear; clc; clf; close all
 %% Main loop
     resultStruct = struct('animal',[],'dataset',[],'result',[]);
     structInd = 1;
-    for datasetList = isoDatasetList%{'E20200316'}%{'N20190222','N20190226','R20200221','R20200222'}%reachDatasetList%{'E20200316'}%bciDatasetList% reachDatasetList%{'E20210707','N20190226','R20200221'}%{'E20200316','N20171215','R20201020'}%{ 'R20200221'}%bciDatasetList%{'E20210706','E20210707','E20210708','E20210709'}%reachDatasetList
+    for datasetList = bciDatasetList%{'E20200316'}%{'N20190222','N20190226','R20200221','R20200222'}%reachDatasetList%{'E20200316'}%bciDatasetList% reachDatasetList%{'E20210707','N20190226','R20200221'}%{'E20200316','N20171215','R20201020'}%{ 'R20200221'}%bciDatasetList%{'E20210706','E20210707','E20210708','E20210709'}%reachDatasetList
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};
@@ -58,11 +58,15 @@ clear; clc; clf; close all
                         sessionResultStruct(sessionResultStructInd).predictorTarget = predictedTarget;
                         sessionResultStruct(sessionResultStructInd).errorBeforeShift = NaN(1,numIterations);
                         sessionResultStruct(sessionResultStructInd).errorAfterShift = NaN(1,numIterations);
+                        sessionResultStruct(sessionResultStructInd).baselineError = NaN(1,numIterations);
+                        sessionResultStruct(sessionResultStructInd).other_baselineError = NaN(1,numIterations);
                         sessionResultStruct(sessionResultStructInd).normErrorBeforeShift = NaN(1,numIterations);
                         sessionResultStruct(sessionResultStructInd).normErrorAfterShift = NaN(1,numIterations);
                         sessionResultStruct(sessionResultStructInd).R2BeforeShift = NaN(1,numIterations);
                         sessionResultStruct(sessionResultStructInd).R2AfterShift = NaN(1,numIterations);
                         sessionResultStruct(sessionResultStructInd).pctChange = NaN(1,numIterations);
+                        sessionResultStruct(sessionResultStructInd).pctChange_2 = NaN(1,numIterations);
+                        sessionResultStruct(sessionResultStructInd).pctChange_3 = NaN;
                         sessionResultStructInd = sessionResultStructInd + 1;
                     end
                 end
@@ -101,6 +105,9 @@ clear; clc; clf; close all
                             errorBeforeShift = getMeanDist(traj1,unshiftTraj2,tempNumPts);
                             errorAfterShift = getMeanDist(traj1,shiftTraj2,tempNumPts);
                             baselineError = getMeanDist(traj1,shiftBaselineTraj,tempNumPts);
+                            
+                            other_baselineError = getMeanDist(traj1,baselineTraj,tempNumPts);
+                            
                             normErrorBeforeShift = errorBeforeShift./baselineError;
                             normErrorAfterShift = errorAfterShift./baselineError;
                             R2BeforeShift = getR2(traj1,unshiftTraj2,tempNumPts);
@@ -112,9 +119,14 @@ clear; clc; clf; close all
                             sessionResultStruct(sessionResultStructInd).errorAfterShift(i) = errorAfterShift;     
                             sessionResultStruct(sessionResultStructInd).normErrorBeforeShift(i) = normErrorBeforeShift;
                             sessionResultStruct(sessionResultStructInd).normErrorAfterShift(i) = normErrorAfterShift;
+                            sessionResultStruct(sessionResultStructInd).baselineError(i) = baselineError;
+                            sessionResultStruct(sessionResultStructInd).other_baselineError(i) = other_baselineError;
                             sessionResultStruct(sessionResultStructInd).R2BeforeShift(i) = R2BeforeShift;
                             sessionResultStruct(sessionResultStructInd).R2AfterShift(i) = R2AfterShift;
-                            sessionResultStruct(sessionResultStructInd).pctChange(i) = 100*(((errorAfterShift-baselineError)-(errorBeforeShift-baselineError))/(errorBeforeShift-baselineError));
+                            %sessionResultStruct(sessionResultStructInd).pctChange(i) = 100*(((errorAfterShift-baselineError)-(errorBeforeShift-baselineError))/(errorBeforeShift-baselineError));
+                            sessionResultStruct(sessionResultStructInd).pctChange(i) = 100*(((errorAfterShift-baselineError)-(errorBeforeShift-other_baselineError))/(errorBeforeShift-other_baselineError));
+                            sessionResultStruct(sessionResultStructInd).pctChange_2(i) = 100*((normErrorAfterShift-normErrorBeforeShift)/(normErrorBeforeShift));
+                            
                         end
                     end
                 end
@@ -134,6 +146,7 @@ clear; clc; clf; close all
            sessionResultStruct(sessionResultStructInd).meanNormErrorAfterShift = mean([sessionResultStruct(sessionResultStructInd).normErrorAfterShift]);    
            %pctChange
            sessionResultStruct(sessionResultStructInd).meanPctChange = mean([sessionResultStruct(sessionResultStructInd).pctChange]);
+           sessionResultStruct(sessionResultStructInd).meanPctChange_2 = mean([sessionResultStruct(sessionResultStructInd).pctChange_2]);
         end
        
         %Add results to resultStruct
@@ -240,10 +253,12 @@ clear; clc; clf; close all
         monkey
         tempResultStruct = resultStruct(strcmp(resultMonkeyList,monkey{1,1}));
         pctChangeDist = [];
+        pctChangeDist_2 = [];
         for session = 1:numel(tempResultStruct)
             result = tempResultStruct(session).result;
             %pctChangeDist = [pctChangeDist,result.pctChange];
             pctChangeDist = [pctChangeDist,result.meanPctChange];
+            %pc
         end
         meanPctReduction = mean(pctChangeDist)
         SEMPctReduction = std(pctChangeDist)/sqrt(length(pctChangeDist))

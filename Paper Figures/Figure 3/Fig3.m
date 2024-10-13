@@ -1,7 +1,7 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
+    saveFig = true;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 3';
     %saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S5 - different joints';
     set(0, 'DefaultFigureRenderer', 'painters');
@@ -41,7 +41,7 @@ clear; clc; clf; close all
     end      
     
     %Run loop
-    for datasetList = {'E20210901'}%reachDatasetList%{'E20200316','N20171215','R20201020'}%bciDatasetList
+    for datasetList = isoDatasetList%{'E20210901'}%reachDatasetList%{'E20200316','N20171215','R20201020'}%bciDatasetList
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};
