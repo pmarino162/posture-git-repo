@@ -1,26 +1,26 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
-    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\Reviewer responses';
+    saveFig = true;
+    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\Reviewer responses\Analyses\Fig 6';
     set(0, 'DefaultFigureRenderer', 'painters');
 
 %% Set parameters
    numPCsToKeep = 10;    %Num PCs to project data into before analysis
-   numIterations = 20;
-   task = 'Reach'; %Task to analyze ('BCI', 'Iso', or 'Reach')
-   statsBinWidth = 0.1; %Difference before shift bin width for stats
+   numIterations = 1000;
+   task = 'BCI'; %Task to analyze ('BCI', 'Iso', or 'Reach')
+   statsBinWidth = 0.2; %Difference before shift bin width for stats
    
 %% Set up monkey task trial counts struct (determines how many trials to use for each monkey and task)
     trialsToUseStruct = struct('monkey',[],'task',[],'trialsToUse',[]);
-    trialsToUseStruct(1) = struct('monkey','E','task','BCI','trialsToUse',18);
+    trialsToUseStruct(1) = struct('monkey','E','task','BCI','trialsToUse',12); %These values were computed by taking the minimum # trials in any condition across sessions for each monkey and task (after excluding conditions with less than 10 trials)
     trialsToUseStruct(2) = struct('monkey','N','task','BCI','trialsToUse',28);
-    trialsToUseStruct(3) = struct('monkey','R','task','BCI','trialsToUse',18);
+    trialsToUseStruct(3) = struct('monkey','R','task','BCI','trialsToUse',16);
     trialsToUseStruct(4) = struct('monkey','E','task','Iso','trialsToUse',38);
-    trialsToUseStruct(5) = struct('monkey','E','task','Reach','trialsToUse',18);
+    trialsToUseStruct(5) = struct('monkey','E','task','Reach','trialsToUse',14);
     trialsToUseStruct(6) = struct('monkey','N','task','Reach','trialsToUse',32);
     trialsToUseStruct(7) = struct('monkey','R','task','Reach','trialsToUse',44);
-   
+    
 %% Datasets to include in analysis 
     reachDatasetList = {'E20210706','E20210707','E20210708',...
         'N20190222','N20190226','N20190227','N20190228','N20190307'...
@@ -66,7 +66,7 @@ clear; clc; clf; close all
         %% Preallocate sessionResultStruct
         sessionResultStruct = struct('predictedPosture',[],'predictedTarget',[],'predictorPosture',[],'predictorTarget',[],... 
             'errorBeforeShift',[],'errorAfterShift',[],'normErrorBeforeShift',[],'normErrorAfterShift',[],...
-            'R2BeforeShift',[],'R2AfterShift',[],'pctChange',[]);
+            'traj1ErrorBeforeShift',[],'traj2ErrorBeforeShift',[],'traj1ErrorAfterShift',[],'traj2ErrorAfterShift',[],'pctChange',[]);
         sessionResultStructInd = 1;
         for predictedPosture = postureList
             withinPostureTargetList = unique([trajStruct([trajStruct.posture]==predictedPosture).target]);       
@@ -102,7 +102,7 @@ clear; clc; clf; close all
             end
         end
 
-        %Compute overall means
+        %Compute overall means and pct changes
         for sessionResultStructInd = 1:numel(sessionResultStruct)
            %error
            sessionResultStruct(sessionResultStructInd).meanErrorBeforeShift = mean([sessionResultStruct(sessionResultStructInd).errorBeforeShift]);
@@ -110,10 +110,19 @@ clear; clc; clf; close all
            %normalized error 
            sessionResultStruct(sessionResultStructInd).meanNormErrorBeforeShift = mean([sessionResultStruct(sessionResultStructInd).normErrorBeforeShift]);
            sessionResultStruct(sessionResultStructInd).meanNormErrorAfterShift = mean([sessionResultStruct(sessionResultStructInd).normErrorAfterShift]);    
-           %pctChange
-           sessionResultStruct(sessionResultStructInd).meanPctChange = mean([sessionResultStruct(sessionResultStructInd).pctChange]);
+           %pct change
+           traj1ErrorBeforeShift =  sessionResultStruct(sessionResultStructInd).traj1ErrorBeforeShift;
+           traj2ErrorBeforeShift = sessionResultStruct(sessionResultStructInd).traj2ErrorBeforeShift;
+           traj1ErrorAfterShift = sessionResultStruct(sessionResultStructInd).traj1ErrorAfterShift;
+           traj2ErrorAfterShift = sessionResultStruct(sessionResultStructInd).traj2ErrorAfterShift;
+           errorBeforeShift = sessionResultStruct(sessionResultStructInd).meanErrorBeforeShift;
+           errorAfterShift = sessionResultStruct(sessionResultStructInd).meanErrorAfterShift;
+           errorBeforeShiftBias = mean(horzcat(traj1ErrorBeforeShift,traj2ErrorBeforeShift));
+           errorAfterShiftBias = mean(horzcat(traj1ErrorAfterShift,traj2ErrorAfterShift));
+           errorBeforeShiftNoBias = errorBeforeShift - errorBeforeShiftBias;
+           errorAfterShiftNoBias = errorAfterShift - errorAfterShiftBias;            
+           sessionResultStruct(sessionResultStructInd).pctChange = 100.*(errorAfterShiftNoBias - errorBeforeShiftNoBias)./(errorBeforeShiftNoBias);
         end
-       
         %Add results to resultStruct
         resultStruct(structInd).dataset = dataset;
         resultStruct(structInd).monkey = dataset(1);
@@ -127,22 +136,24 @@ clear; clc; clf; close all
     end
     monkeyList = unique(resultMonkeyList);
     numMonkeys = numel(monkeyList);
-   
+    
 %% Combine all results across sessions within each monkey. Compute 'diffBetweenGroups' and run t-test
-    allMonkeyComparisonStruct = struct('monkey',[],'allMonkeyMeanNormErrorBeforeShift',[],'allMonkeyMeanNormErrorAfterShift',[],'allMonkeyGroup',[],'allMonkeyDiffBetweenGroups',[],'p',[],'h',[]);
+    allMonkeyComparisonStruct = struct('monkey',[],'allMonkeyMeanNormErrorBeforeShift',[],'allMonkeyMeanNormErrorAfterShift',[],'allMonkeyGroup',[],'allMonkeyDiffBetweenGroups',[],'p',[],'h',[],'meanPctChangeAcrossPostures',[],'meanPctChangeAcrossTargets',[]);
     monkeyInd = 1;
     for monkey = monkeyList
         allMonkeyMeanNormErrorBeforeShift = [];
         allMonkeyMeanNormErrorAfterShift = [];
         allMonkeyGroup = [];
         allMonkeyDiffBetweenGroups = [];
-        
+        allMonkeyPctChangeAcrossPostures = [];
+        allMonkeyPctChangeAcrossTargets = [];
         tempResultStruct = resultStruct(strcmp(resultMonkeyList,monkey{1,1}));
         for i = 1:size(tempResultStruct,2)
             % Get session result
             result = tempResultStruct(i).result; 
             meanNormErrorBeforeShift = [result.meanNormErrorBeforeShift];
             meanNormErrorAfterShift = [result.meanNormErrorAfterShift];
+            pctChange = [result.pctChange];
             
             % Get group numbers 1 = across posture, 2 = smallest target comparison, 0 = all else
             group = zeros(1, length(result));
@@ -153,15 +164,17 @@ clear; clc; clf; close all
                 group(getIndicesOfWithinPostureAngleComparisons(result, 45)) = 2;
             end
 
-            % Get before and after shift errors for each group
+            % Get before and after shift errors, pct change for each group
             acrossPostureBeforeShift = meanNormErrorBeforeShift(group==1);
             acrossPostureAfterShift = meanNormErrorAfterShift(group==1);
+            acrossPosturePctChange = pctChange(group==1);
             acrossTargetBeforeShift = meanNormErrorBeforeShift(group==2);
-            acrossTargetAfterShift = meanNormErrorAfterShift(group==2);
-
+            acrossTargetAfterShift = meanNormErrorAfterShift(group==2);    
+            acrossTargetPctChange = pctChange(group==2);
+            
             %Set up bins
             maxBeforeShift = max([acrossPostureBeforeShift, acrossTargetBeforeShift]);
-            numBins = ceil(maxBeforeShift/statsBinWidth);
+            numBins = ceil(maxBeforeShift/statsBinWidth) + 5;
             binEdges = zeros(1, numBins+1);
             for bin = 1:numBins
                 binEdges(bin+1) = binEdges(bin) + statsBinWidth;
@@ -182,6 +195,8 @@ clear; clc; clf; close all
             allMonkeyMeanNormErrorAfterShift = [allMonkeyMeanNormErrorAfterShift, meanNormErrorAfterShift];
             allMonkeyGroup = [allMonkeyGroup, group];
             allMonkeyDiffBetweenGroups = [allMonkeyDiffBetweenGroups, diffBetweenGroups];
+            allMonkeyPctChangeAcrossPostures = [allMonkeyPctChangeAcrossPostures, acrossPosturePctChange];
+            allMonkeyPctChangeAcrossTargets = [allMonkeyPctChangeAcrossTargets, acrossTargetPctChange];
         end
 
     
@@ -196,221 +211,41 @@ clear; clc; clf; close all
         allMonkeyComparisonStruct(monkeyInd).allMonkeyDiffBetweenGroups = allMonkeyDiffBetweenGroups;
         allMonkeyComparisonStruct(monkeyInd).h = h;
         allMonkeyComparisonStruct(monkeyInd).p = p;
+        allMonkeyComparisonStruct(monkeyInd).meanPctChangeAcrossPostures = mean(allMonkeyPctChangeAcrossPostures);
+        allMonkeyComparisonStruct(monkeyInd).meanPctChangeAcrossTargets = mean(allMonkeyPctChangeAcrossTargets);
         monkeyInd = monkeyInd + 1;
     end
-    
+    %Save
+    save(fullfile(saveDir,'stats','allMonkeyComparisonStruct.mat'),'allMonkeyComparisonStruct')
     
 %% Plot results (per monkey)
-
+for monkey = monkeyList
+    figure; hold on;
+    % Plot all points
+    plotAllPoints(monkey, allMonkeyComparisonStruct)
+    % Plot overall means
+    addOverallMeansToPlot(monkey, allMonkeyComparisonStruct)
+    % Format and save
+    formatFig6Plot(gca)
+    if saveFig
+        saveas(gcf,fullfile(saveDir,'scatters',['monkey',monkey{1,1},'_',task,'_scatter.svg']));
+    end
+end
 
 %% Plot results (combined across monkeys)
-figure
-hold on;
-% Plot all points
-for monkey = monkeyList
-    
-    tempComparisonStruct = allMonkeyComparisonStruct(strcmp({allMonkeyComparisonStruct.monkey},monkey{1,1}));
-    meanNormErrorBeforeShift = tempComparisonStruct.allMonkeyMeanNormErrorBeforeShift;
-    meanNormErrorAfterShift = tempComparisonStruct.allMonkeyMeanNormErrorAfterShift;
-    group = tempComparisonStruct.allMonkeyGroup;
-        
-    switch monkey{1,1}
-        case 'E'
-           scatter(meanNormErrorBeforeShift(group==1),meanNormErrorAfterShift(group==1),25,'o',...
-               'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
-               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);   
-           
-           scatter(meanNormErrorBeforeShift(group==2),meanNormErrorAfterShift(group==2),25,'o',...
-               'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
-               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
-           
-        case 'N'
-           scatter(meanNormErrorBeforeShift(group==1),meanNormErrorAfterShift(group==1),30,'d',...
-               'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
-               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
-           
-           scatter(meanNormErrorBeforeShift(group==2),meanNormErrorAfterShift(group==2),30,'d',...
-               'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
-               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
-           
-        case 'R'
-           scatter(meanNormErrorBeforeShift(group==1),meanNormErrorAfterShift(group==1),55,'x',...
-               'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
-               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
-           
-           scatter(meanNormErrorBeforeShift(group==2),meanNormErrorAfterShift(group==2),55,'x',...
-               'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
-               'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
-    end
-end
-
-% Add overall means
-for monkey = monkeyList
-    
-    tempComparisonStruct = allMonkeyComparisonStruct(strcmp({allMonkeyComparisonStruct.monkey},monkey{1,1}));
-    meanNormErrorBeforeShift = tempComparisonStruct.allMonkeyMeanNormErrorBeforeShift;
-    meanNormErrorAfterShift = tempComparisonStruct.allMonkeyMeanNormErrorAfterShift;
-    group = tempComparisonStruct.allMonkeyGroup;
-    
-	switch monkey{1,1}
-           case 'E'
-                scatter(mean(meanNormErrorBeforeShift(group==1)),mean(meanNormErrorAfterShift(group==1)),275,'o',...
-                    'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
-                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);  
-                
-                scatter(mean(meanNormErrorBeforeShift(group==2)),mean(meanNormErrorAfterShift(group==2)),275,'o',...
-                    'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
-                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);  
-                
-           case 'N'           
-                scatter(mean(meanNormErrorBeforeShift(group==1)),mean(meanNormErrorAfterShift(group==1)),275,'d',...
-                    'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[1 1 1],...
-                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);   
-                
-                scatter(mean(meanNormErrorBeforeShift(group==2)),mean(meanNormErrorAfterShift(group==2)),275,'d',...
-                    'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[1 1 1],...
-                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);   
-                
-           case 'R'
-                scatter(mean(meanNormErrorBeforeShift(group==1)),mean(meanNormErrorAfterShift(group==1)),325,'x',...
-                    'MarkerEdgeColor',[1 0 0],'MarkerFaceColor',[0 0 0],...
-                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);   
-                
-                scatter(mean(meanNormErrorBeforeShift(group==2)),mean(meanNormErrorAfterShift(group==2)),325,'x',...
-                    'MarkerEdgeColor',[1 0 0],'MarkerFaceColor',[0 0 0],...
-                    'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);   
-       end
-end
-  ax = gca;
-    xlim = ax.XLim; ylim = ax.YLim;
-    %Diagonal Line
-    
-    %maxVal = max(horzcat(xlim,ylim));
-    maxVal = 7;
-    %minVal = min(horzcat(xlim,ylim));
-    minVal = 0.75;
-    plot([minVal ,maxVal],[minVal, maxVal],'--','LineWidth',2,'Color','k')
-    %Line at 1
-    ax = gca;
-    xlim = ax.XLim; ylim = ax.YLim;
-    plot([xlim(1),xlim(2)],[1,1],'--','LineWidth',2,'Color','k')
-    %Axis Labels, ticks
-    ax.XLim = [minVal, maxVal];
-    ax.YLim = [minVal, maxVal];
-    xticks([1,xlim(2)])
-    yticks([1,ylim(2)])
-    ax.TickDir = 'out';
-    set(gca,'fontname','arial'); set(gca,'fontsize',20);
-    
-
-%% Archive
-    monkeyInd = 1;
+    figure; hold on;
+    % Plot all points
     for monkey = monkeyList
-       
-        allMonkeyMeanNormErrorBeforeShift = [];
-        allMonkeyMeanNormErrorAfterShift = [];
-        allMonkeyGroup = [];
-       
-       
-       allMonkeyComparisons = NaN(1,2);
-       allMonkeyComparisonInd = 1;
-       
-       tempResultStruct = resultStruct(strcmp(resultMonkeyList,monkey{1,1}));
-       
-       for session = 1:numel(tempResultStruct)
-           result = tempResultStruct(session).result;
-           
-           %Get before shift and after shift errors          
-           meanNormErrorBeforeShift = [result.meanNormErrorBeforeShift];
-           meanNormErrorAfterShift = [result.meanNormErrorAfterShift];
-           
-           allMonkeyMeanNormErrorBeforeShift = horzcat(allMonkeyMeanNormErrorBeforeShift, meanNormErrorBeforeShift);
-           allMonkeyMeanNormErrorAfterShift = horzcat(allMonkeyMeanNormErrorAfterShift, meanNormErrorAfterShift);
-           
-           %Group variable: 1 = across posture, 2 = 45 degree target (w/in
-           %posture), 3 = 90 degree target (w/in posture). For iso force,
-           % 2 = 180 degree target (w/in posture)
-           group = zeros(1, length(result));
-           group([result.predictedTarget]==[result.predictorTarget]) = 1;
-           if ismember(tempResultStruct(session).dataset, isoDatasetList)
-               group(getIndicesOfWithinPostureAngleComparisons(result, 180)) = 2;
-           else
-               group(getIndicesOfWithinPostureAngleComparisons(result, 45)) = 2;
-           end
-           allMonkeyGroup = horzcat(allMonkeyGroup, group);
-           
-       end
-           f=figure; hold on;
-           %plot([minVal ,maxVal],[minVal, maxVal],'--','LineWidth',2,'Color','k')
-        if ismember(tempResultStruct(session).dataset, isoDatasetList)
-            scatterhist(allMonkeyMeanNormErrorBeforeShift(allMonkeyGroup~=0),allMonkeyMeanNormErrorAfterShift(allMonkeyGroup~=0),'Group',allMonkeyGroup(allMonkeyGroup~=0),'Kernel','on','Location','SouthEast',...
-                'Direction','out','Color','kbr','LineStyle',{'-','-.'},...
-                'LineWidth',[2,2],'Marker','+od','MarkerSize',[4,5]);
-            legend('Across posture','Across target (180 deg)')
-        else
-            scatterhist(allMonkeyMeanNormErrorBeforeShift(allMonkeyGroup~=0),allMonkeyMeanNormErrorAfterShift(allMonkeyGroup~=0),'Group',allMonkeyGroup(allMonkeyGroup~=0),'Kernel','on','Location','SouthEast',...
-                'Direction','out','Color','kbr','LineStyle',{'-','-.',':'},...
-                'LineWidth',[2,2,2],'Marker','+od','MarkerSize',[4,5,6]);
-            legend('Across posture','Across target (45 deg)', 'Across target (90 deg)')
-        end
-        %xlim([0,7])
-        %ylim([0,7])
-        
-        %minVal = 0;
-        %maxVal = 7;
-        
-        
-        xlabel('Error before shift (normalized)')
-        ylabel('Error after shift (normalized)')
-        title(['Monkey ' monkey])
-%            %Plot normalized error
-%            for comparison = 1:numel(result)
-%                %Get before shift and after shift errors
-%                normErrorBeforeShiftMean = result(comparison).meanNormErrorBeforeShift;
-%                normErrorAfterShiftMean = result(comparison).meanNormErrorAfterShift;
-%                %Add to allMonkeyComparisons
-%                allMonkeyComparisons(allMonkeyComparisonInd,:) = [normErrorBeforeShiftMean,normErrorAfterShiftMean];
-%                allMonkeyComparisonInd = allMonkeyComparisonInd + 1;
-%                %Plot scatter
-%                switch monkeyInd
-%                    case 1
-%                        scatter(normErrorBeforeShiftMean,normErrorAfterShiftMean,25,'o',...
-%                            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
-%                            'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);    
-%                    case 2
-%                        scatter(normErrorBeforeShiftMean,normErrorAfterShiftMean,30,'d',...
-%                            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
-%                            'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
-%                    case 3
-%                        scatter(normErrorBeforeShiftMean,normErrorAfterShiftMean,55,'x',...
-%                            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
-%                            'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);  
-%                end
-%            end
-%        end
-%        allMonkeyComparisonsStruct(monkeyInd).monkey = monkey;
-%        allMonkeyComparisonsStruct(monkeyInd).allMonkeyComparisons = allMonkeyComparisons;
-%        monkeyInd = monkeyInd + 1;
+        plotAllPoints(monkey, allMonkeyComparisonStruct)
     end
-%% Plot results (across monkeys)
-
-
-%% Get overall pct reduction for reporting in text
+    % Add overall means
     for monkey = monkeyList
-        monkey
-        tempResultStruct = resultStruct(strcmp(resultMonkeyList,monkey{1,1}));
-        pctChangeDist = [];
-        pctChangeDist_2 = [];
-        for session = 1:numel(tempResultStruct)
-            result = tempResultStruct(session).result;
-            %pctChangeDist = [pctChangeDist,result.pctChange];
-            pctChangeDist = [pctChangeDist,result.meanPctChange];
-            %pc
-        end
-        meanPctReduction = mean(pctChangeDist)
-        SEMPctReduction = std(pctChangeDist)/sqrt(length(pctChangeDist))
-        figure
-        histogram(pctChangeDist)
+        addOverallMeansToPlot(monkey, allMonkeyComparisonStruct)
+    end
+    %Format and save plot
+    formatFig6Plot(gca)
+    if saveFig
+        saveas(gcf,fullfile(saveDir,'scatters',[task,'_scatter.svg']));
     end
 
 %% Local functions   
@@ -443,6 +278,10 @@ end
         sessionResultStruct(sessionResultStructInd).baselineError = NaN(1,numIterations);
         sessionResultStruct(sessionResultStructInd).normErrorBeforeShift = NaN(1,numIterations);
         sessionResultStruct(sessionResultStructInd).normErrorAfterShift = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).traj1ErrorBeforeShift = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).traj2ErrorBeforeShift = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).traj1ErrorAfterShift = NaN(1,numIterations);
+        sessionResultStruct(sessionResultStructInd).traj2ErrorAfterShift = NaN(1,numIterations);
         sessionResultStruct(sessionResultStructInd).pctChange = NaN(1,numIterations);
     end
     
@@ -450,26 +289,42 @@ end
     function sessionResultStruct = makeComparisonAndAddToSessionResultStruct(sessionResultStruct, trajStruct1, trajStruct2, predictedPosture, predictedTarget, predictorPosture, predictorTarget, numPts, iteration)
         predictedCond = find([trajStruct1.target]==predictedTarget & [trajStruct1.posture]==predictedPosture);
         predictorCond = find([trajStruct1.target]==predictorTarget & [trajStruct1.posture]==predictorPosture);
-        %Compute comparison difference 
-        traj1 = trajStruct1(predictedCond).avgPCA.traj;%Predicted traj
-        traj2 = trajStruct1(predictorCond).avgPCA.traj;%Comparison traj
-        baselineTraj = trajStruct2(predictedCond).avgPCA.traj;%Used for normalization
-        unshiftTraj2 = traj2;
-        if min([size(traj1,1),size(traj2,1)]) < numPts
-            tempNumPts = min([size(traj1,1),size(traj2,1)]);
-        else
-            tempNumPts = numPts;
-        end
-        alpha = getOptimalAlpha(traj1,traj2,tempNumPts);
-        shiftTraj2 = traj2 + alpha;  
-        alpha = getOptimalAlpha(traj1,baselineTraj,tempNumPts);
-        shiftBaselineTraj = baselineTraj + alpha;
-        %Compute absolute and normalized errors
-        errorBeforeShift = getMeanDist(traj1,unshiftTraj2,tempNumPts);
-        errorAfterShift = getMeanDist(traj1,shiftTraj2,tempNumPts);
-        baselineError = getMeanDist(traj1,shiftBaselineTraj,tempNumPts);
-        normErrorBeforeShift = errorBeforeShift./baselineError;
-        normErrorAfterShift = errorAfterShift./baselineError;
+        
+        %Get all resampled trajectories
+        traj1group1 = trajStruct1(predictedCond).avgPCA.traj;%Predicted traj
+        traj1group2 = trajStruct2(predictedCond).avgPCA.traj;
+        traj2group1 = trajStruct1(predictorCond).avgPCA.traj;%Comparison traj
+        traj2group2 = trajStruct2(predictorCond).avgPCA.traj;
+
+        %Compute traj1 diff before shift (w/in condition)
+        tempNumPts = getTempNumPts(traj1group1,traj1group2,numPts);
+        traj1ErrorBeforeShift = getMeanDist(traj1group1,traj1group2,tempNumPts);
+
+        %Compute traj1 diff after shift (w/in %condition)
+        alpha = getOptimalAlpha(traj1group1,traj1group2,tempNumPts);
+        shiftTraj1Group2 = traj1group2 + alpha;  
+        traj1ErrorAfterShift = getMeanDist(traj1group1,shiftTraj1Group2,tempNumPts);
+
+        %Compute traj2 diff before shift (w/in condition)
+        tempNumPts = getTempNumPts(traj2group1,traj2group2,numPts);
+        traj2ErrorBeforeShift = getMeanDist(traj2group1,traj2group2,tempNumPts);
+
+        %Compute traj2 diff after shift (w/in %condition)
+        alpha = getOptimalAlpha(traj2group1,traj2group2,tempNumPts);
+        shiftTraj2Group2 = traj2group2 + alpha;  
+        traj2ErrorAfterShift = getMeanDist(traj2group1,shiftTraj2Group2,tempNumPts);
+
+        %Compute diff before shift
+        tempNumPts = getTempNumPts(traj1group1,traj2group1,numPts);
+        errorBeforeShift = getMeanDist(traj1group1,traj2group1,tempNumPts);
+        normErrorBeforeShift = errorBeforeShift./traj1ErrorAfterShift;
+
+        %Compute diff after shift
+        alpha = getOptimalAlpha(traj1group1,traj2group1,tempNumPts);
+        shiftTraj2Group1 = traj2group1 + alpha;  
+        errorAfterShift = getMeanDist(traj1group1,shiftTraj2Group1,tempNumPts);
+        normErrorAfterShift = errorAfterShift./traj1ErrorAfterShift;
+
         %Store results in sessionResultStruct
         sessionResultStructInd = find([sessionResultStruct.predictedPosture]==predictedPosture & ...
             [sessionResultStruct.predictedTarget]==predictedTarget & [sessionResultStruct.predictorPosture]==predictorPosture & ...
@@ -478,8 +333,10 @@ end
         sessionResultStruct(sessionResultStructInd).errorAfterShift(iteration) = errorAfterShift;     
         sessionResultStruct(sessionResultStructInd).normErrorBeforeShift(iteration) = normErrorBeforeShift;
         sessionResultStruct(sessionResultStructInd).normErrorAfterShift(iteration) = normErrorAfterShift;
-        sessionResultStruct(sessionResultStructInd).baselineError(iteration) = baselineError;
-        sessionResultStruct(sessionResultStructInd).pctChange(iteration) = 100*(((errorAfterShift-baselineError)-(errorBeforeShift-baselineError))/(errorBeforeShift-baselineError));
+        sessionResultStruct(sessionResultStructInd).traj1ErrorBeforeShift(iteration) = traj1ErrorBeforeShift;
+        sessionResultStruct(sessionResultStructInd).traj2ErrorBeforeShift(iteration) = traj2ErrorBeforeShift;
+        sessionResultStruct(sessionResultStructInd).traj1ErrorAfterShift(iteration) = traj1ErrorAfterShift;
+        sessionResultStruct(sessionResultStructInd).traj2ErrorAfterShift(iteration) = traj2ErrorAfterShift;
     end
     
     %Get indices of within posture target comparisons of particular angle
@@ -502,4 +359,65 @@ end
 
         % Find indices where postures are equal and angle difference matches the input
         indices = find(predictedPosture == predictorPosture & diffAngles == angle);  
+    end
+    
+    %Get number of points used in comparison
+    function tempNumPts = getTempNumPts(traj1,traj2,numPts)
+        if min([size(traj1,1),size(traj2,1)]) < numPts
+            tempNumPts = min([size(traj1,1),size(traj2,1)]);
+        else
+            tempNumPts = numPts;
+        end
+    end
+    
+    %Plot all points
+    function plotAllPoints(monkey, allMonkeyComparisonStruct)
+        tempComparisonStruct = allMonkeyComparisonStruct(strcmp({allMonkeyComparisonStruct.monkey},monkey{1,1}));
+        meanNormErrorBeforeShift = tempComparisonStruct.allMonkeyMeanNormErrorBeforeShift;
+        meanNormErrorAfterShift = tempComparisonStruct.allMonkeyMeanNormErrorAfterShift;
+        group = tempComparisonStruct.allMonkeyGroup;
+        
+       scatter(meanNormErrorBeforeShift(group==1),meanNormErrorAfterShift(group==1),25,'o',...
+           'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
+           'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);   
+
+       scatter(meanNormErrorBeforeShift(group==2),meanNormErrorAfterShift(group==2),25,'o',...
+           'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
+           'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5); 
+    end
+    
+    %Add overall means
+    function addOverallMeansToPlot(monkey, allMonkeyComparisonStruct)
+        tempComparisonStruct = allMonkeyComparisonStruct(strcmp({allMonkeyComparisonStruct.monkey},monkey{1,1}));
+        meanNormErrorBeforeShift = tempComparisonStruct.allMonkeyMeanNormErrorBeforeShift;
+        meanNormErrorAfterShift = tempComparisonStruct.allMonkeyMeanNormErrorAfterShift;
+        group = tempComparisonStruct.allMonkeyGroup;
+    
+       scatter(mean(meanNormErrorBeforeShift(group==1)),mean(meanNormErrorAfterShift(group==1)),275,'o',...
+            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
+            'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);  
+
+        scatter(mean(meanNormErrorBeforeShift(group==2)),mean(meanNormErrorAfterShift(group==2)),275,'o',...
+            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
+            'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);  
+    end
+    
+    %Format plot
+    function formatFig6Plot(ax)
+        
+        xlim = ax.XLim; ylim = ax.YLim;
+        %Diagonal Line
+        maxVal = 7;
+        minVal = 0.75;
+        plot([minVal ,maxVal],[minVal, maxVal],'--','LineWidth',2,'Color','k')
+        %Line at 1
+        xlim = ax.XLim; ylim = ax.YLim;
+        plot([xlim(1),xlim(2)],[1,1],'--','LineWidth',2,'Color','k')
+        %Axis Labels, ticks
+        ax.XLim = [minVal, maxVal];
+        ax.YLim = [minVal, maxVal];
+        xticks([1,xlim(2)])
+        yticks([1,ylim(2)])
+        ax.TickDir = 'out';
+        set(ax,'fontname','arial'); set(gca,'fontsize',20);
     end
