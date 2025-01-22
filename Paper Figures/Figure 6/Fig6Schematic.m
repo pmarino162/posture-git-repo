@@ -3,6 +3,15 @@ clear; clc; close all;
 %% Set up figure
     f=figure; hold on;
 
+%% Define color map
+    color = [249, 141, 249]./255;
+    %color = [253, 187, 253]./255;
+    numRows = 50;
+    col1 = linspace(1, color(1), numRows);
+    col2 = linspace(1, color(2), numRows);
+    col3 = linspace(1, color(3), numRows);
+    cmap = [col1',col2',col3'];
+    
 %% Shading 
     numRows = 200;
     numCols = 200;
@@ -19,10 +28,10 @@ clear; clc; close all;
     %imagesc(C)
     imagesc('XData',[1 6],'YData',[6 1],'CData',C) 
 
-    cmap = gray; 
-    cmap = cmap(20:64,:);
-    colormap(flip(cmap))
-
+    %cmap = gray; 
+    %cmap = cmap(20:64,:);
+    %colormap(flip(cmap))
+    colormap(cmap)
     ax = gca;
     
 %% Lines 
