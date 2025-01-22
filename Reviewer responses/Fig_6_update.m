@@ -7,10 +7,13 @@ clear; clc; clf; close all
 
 %% Set parameters
    numPCsToKeep = 10;    %Num PCs to project data into before analysis
-   numIterations = 1000;
+   numIterations = 10000;
    task = 'BCI'; %Task to analyze ('BCI', 'Iso', or 'Reach')
    statsBinWidth = 0.2; %Difference before shift bin width for stats
-   
+
+   %% Setup colormap (based on number of postures)
+    [pcmap,tcmap,rainbow] = getColorMaps(5);
+    
 %% Set up monkey task trial counts struct (determines how many trials to use for each monkey and task)
     trialsToUseStruct = struct('monkey',[],'task',[],'trialsToUse',[]);
     trialsToUseStruct(1) = struct('monkey','E','task','BCI','trialsToUse',12); %These values were computed by taking the minimum # trials in any condition across sessions for each monkey and task (after excluding conditions with less than 10 trials)
@@ -222,31 +225,15 @@ clear; clc; clf; close all
 for monkey = monkeyList
     figure; hold on;
     % Plot all points
-    plotAllPoints(monkey, allMonkeyComparisonStruct)
+    plotAllPoints(monkey, allMonkeyComparisonStruct, pcmap(1,:), [0 0 0])
     % Plot overall means
-    addOverallMeansToPlot(monkey, allMonkeyComparisonStruct)
+    addOverallMeansToPlot(monkey, allMonkeyComparisonStruct, pcmap(1,:), [0 0 0])
     % Format and save
     formatFig6Plot(gca)
     if saveFig
         saveas(gcf,fullfile(saveDir,'scatters',['monkey',monkey{1,1},'_',task,'_scatter.svg']));
     end
 end
-
-%% Plot results (combined across monkeys)
-    figure; hold on;
-    % Plot all points
-    for monkey = monkeyList
-        plotAllPoints(monkey, allMonkeyComparisonStruct)
-    end
-    % Add overall means
-    for monkey = monkeyList
-        addOverallMeansToPlot(monkey, allMonkeyComparisonStruct)
-    end
-    %Format and save plot
-    formatFig6Plot(gca)
-    if saveFig
-        saveas(gcf,fullfile(saveDir,'scatters',[task,'_scatter.svg']));
-    end
 
 %% Local functions   
     %Get optimal alpha
@@ -371,34 +358,34 @@ end
     end
     
     %Plot all points
-    function plotAllPoints(monkey, allMonkeyComparisonStruct)
+    function plotAllPoints(monkey, allMonkeyComparisonStruct, acrossPostureColor, acrossTargetColor)
         tempComparisonStruct = allMonkeyComparisonStruct(strcmp({allMonkeyComparisonStruct.monkey},monkey{1,1}));
         meanNormErrorBeforeShift = tempComparisonStruct.allMonkeyMeanNormErrorBeforeShift;
         meanNormErrorAfterShift = tempComparisonStruct.allMonkeyMeanNormErrorAfterShift;
         group = tempComparisonStruct.allMonkeyGroup;
         
        scatter(meanNormErrorBeforeShift(group==1),meanNormErrorAfterShift(group==1),25,'o',...
-           'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[0 0 0],...
+           'MarkerEdgeColor', acrossPostureColor, 'MarkerFaceColor', acrossPostureColor,...
            'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5);   
 
        scatter(meanNormErrorBeforeShift(group==2),meanNormErrorAfterShift(group==2),25,'o',...
-           'MarkerEdgeColor',[0 0 1],'MarkerFaceColor',[0 0 1],...
+           'MarkerEdgeColor', acrossTargetColor, 'MarkerFaceColor', acrossTargetColor,...
            'MarkerFaceAlpha',0.3,'MarkerEdgeAlpha',.5); 
     end
     
     %Add overall means
-    function addOverallMeansToPlot(monkey, allMonkeyComparisonStruct)
+    function addOverallMeansToPlot(monkey, allMonkeyComparisonStruct, acrossPostureColor, acrossTargetColor)
         tempComparisonStruct = allMonkeyComparisonStruct(strcmp({allMonkeyComparisonStruct.monkey},monkey{1,1}));
         meanNormErrorBeforeShift = tempComparisonStruct.allMonkeyMeanNormErrorBeforeShift;
         meanNormErrorAfterShift = tempComparisonStruct.allMonkeyMeanNormErrorAfterShift;
         group = tempComparisonStruct.allMonkeyGroup;
     
        scatter(mean(meanNormErrorBeforeShift(group==1)),mean(meanNormErrorAfterShift(group==1)),275,'o',...
-            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
+            'MarkerEdgeColor', acrossPostureColor, 'MarkerFaceColor',[1 1 1],...
             'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);  
 
         scatter(mean(meanNormErrorBeforeShift(group==2)),mean(meanNormErrorAfterShift(group==2)),275,'o',...
-            'MarkerEdgeColor',[0 0 0],'MarkerFaceColor',[1 1 1],...
+            'MarkerEdgeColor', acrossTargetColor, 'MarkerFaceColor',[1 1 1],...
             'MarkerFaceAlpha',1,'MarkerEdgeAlpha',1);  
     end
     

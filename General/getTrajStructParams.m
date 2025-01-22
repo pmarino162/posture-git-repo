@@ -60,11 +60,26 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
                 trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
                 task = 'reach';
+                
+            case {'R20200221_all_visual_data','R20200222_all_visual_data'} %Includes both visual target locations
+                trialInclStates(1).trialName = {'Rocky Dissociation'};
+                condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'},{'visual','conditionData','visualID'}};
+                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
+                task = 'reach';                
+                
             case {'N20190222','N20190226','N20190227','N20190228','N20190301','N20190305','N20190306','N20190307'}
                 trialInclStates(1).trialName = {'Nigel Dissociation'};
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
                 trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
                 task = 'reach';
+            
+            case {'N20190222_all_visual_data','N20190226_all_visual_data','N20190227_all_visual_data','N20190228_all_visual_data','N20190307_all_visual_data'}
+                % Includes both visual target locations
+                trialInclStates(1).trialName = {'Nigel Dissociation'};
+                condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'},{'visual','conditionData','visualID'}};
+                trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-200},{'kin','moveOnsetTime','first',0}};
+                task = 'reach';    
+                
             %Multiple tasks paradigm
             case {'E20200314'}         
                 condFields = {{'task','conditionData','taskID'},{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
