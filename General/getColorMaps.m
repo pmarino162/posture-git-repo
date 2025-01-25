@@ -1,10 +1,10 @@
 function [pcmap,tcmap,rainbow] = getColorMaps(numPostures)
     %Colormaps used for posture paper
     
-    load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\orli.mat')
-    load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\customRainbow.mat')
-    load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\purpleAndGreen2.mat')
-   
+    load('C:\Users\pmari\OneDrive\Documents\Posture\posture-git-repo\marino\Palettes\orli.mat')
+    load('C:\Users\pmari\OneDrive\Documents\Posture\posture-git-repo\marino\Palettes\customRainbow.mat')
+    load('C:\Users\pmari\OneDrive\Documents\Posture\posture-git-repo\marino\Palettes\purpleAndGreen2.mat')
+
     pcmap = orli;
     tcmap = purpleAndGreen;
     rainbow = customRainbow;
