@@ -2,7 +2,7 @@ clear; clc; clf; close all
 
 %% Setup saveFig   
     saveFig = true;
-    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\Reviewer responses\Analyses\Retinotopic invariance';
+    saveDir = "C:\Users\pmari\OneDrive\Documents\Posture\Paper\Reviewer responses\Analyses\Retinotopic invariance";
     set(0, 'DefaultFigureRenderer', 'painters');
 
 %% Set parameters
@@ -93,6 +93,7 @@ clear; clc; clf; close all
         set(gca,'fontsize',fs)
         if saveFig
             saveas(gcf,fullfile(saveDir,[dataset,'_PTOrth.fig']));
+            saveas(gcf,fullfile(saveDir,[dataset,'_PTOrth.svg']));
         end
         
         
@@ -132,6 +133,7 @@ clear; clc; clf; close all
             set(gca,'fontsize',fs)
             if saveFig
                 saveas(gcf,fullfile(saveDir,[dataset,'_posture_',num2str(posture),'_GoalSubspace.jpg']));
+                saveas(gcf,fullfile(saveDir,[dataset,'_posture_',num2str(posture),'_GoalSubspace.svg']));
             end
             
         end

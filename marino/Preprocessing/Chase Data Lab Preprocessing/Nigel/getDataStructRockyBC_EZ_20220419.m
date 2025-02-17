@@ -170,6 +170,8 @@ for trial = 1:numTrials
             Data(trial).Decoder.velocity = vel;
             Data(trial).Decoder.posTime = interpPosTime;
             Data(trial).Decoder.velTime = interpVelTime;
+            Data(trial).Decoder.cursorTraj = pos;
+            Data(trial).Decoder.timestamps = interpPosTime;
                 %send_time = Int.QL.Headers.TASK_STATE_CONFIG.send_time; %One of these for every state
                 %Code that I used to test that there was one send time for
                 %every state and not one for every "behavioral event"

@@ -9,7 +9,7 @@ clear; clc; clf; close all
     regularize = true;
     
 %% Main Loop  
-    for datasetList = {'E20210708'}%{'E20200318','E20210901','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221'}
+    for datasetList = {'E20200318'}%{'E20200318','E20210901','E20200116','E20210706','N20171215','R20201020','N20190226','R20200221','E20210708'}
         %% Load Data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
@@ -84,6 +84,42 @@ clear; clc; clf; close all
         if saveFig
             saveas(gcf,fullfile(saveDir,[dataset,'_PTOrth.fig']));
         end
+        
+        
+        % Plot - 2d goal space
+        fs = 14;
+        figure
+        hold on
+        timePts = 1:minNumTimestamps;
+        xDim = 2; yDim = 3; zDim = 1;
+        for posture = postureList
+            for target = targetList
+                 if any([trajStruct.posture]==posture & [trajStruct.target]==target)
+                    traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).PTOrth.traj(timePts,:); 
+                    
+                    plot(traj(:,xDim),traj(:,yDim),'Color',pcmap(posture,:),'LineWidth',2);
+                    plot(traj(1,xDim),traj(1,yDim),'.','MarkerSize',20,'Color',pcmap(posture,:),'MarkerFaceColor',pcmap(posture,:));
+                    plot(traj(end,xDim),traj(end,yDim),'<','MarkerSize',5,'Color',pcmap(posture,:),'MarkerFaceColor',pcmap(posture,:));
+                    
+                end
+            end
+        end
+             
+        grid on
+        xticklabels({}); yticklabels({}); 
+        VAF = round(trajStruct(1).PTOrth.VAF);
+
+        xlabel(['Goal Dim 1 (',num2str(VAF(xDim)),'%)'])
+        ylabel(['Goal Dim 2 (',num2str(VAF(yDim)),'%)']) 
+        set(gca,'fontname','arial')
+        set(gca,'fontsize',fs)
+        if saveFig
+            saveas(gcf,fullfile(saveDir,[dataset,'_PTOrth.fig']));
+        end
+        
+        
+        
+        
         
         %Plot vs time
         figure 

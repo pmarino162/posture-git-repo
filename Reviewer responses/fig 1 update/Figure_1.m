@@ -1,8 +1,8 @@
 clear; clc; clf; close all;
 
 %% Setup saveFig   
-    saveFig = false;
-    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\Reviewer responses\Figure 1';
+    saveFig = true;
+    saveDir = "C:\Users\pmari\OneDrive\Documents\Posture\Paper\Reviewer responses\Analyses\Fig 1";
     set(0, 'DefaultFigureRenderer', 'painters');
 
 %% Randomly generate disorganized trajectories (T/F)
@@ -28,6 +28,16 @@ clear; clc; clf; close all;
 %% Create orgTrajStruct
     orgTrajStruct = struct('posture',[],'target',[],'traj',[]);
     trajStructInd = 1;
+    
+    % Create a single rotation that applies to everything
+    thetaXFrac = -0.00;
+    thetaYFrac = 0.015;
+    thetaZFrac = 0.03;
+    thetaX = 360*thetaXFrac;
+    thetaY = 360*thetaYFrac;
+    thetaZ = 360*thetaZFrac;
+    preRotMat = rotX(thetaX)*rotY(thetaY)*rotZ(thetaZ);
+    
     for posture = postureList
         for target = targetList
             %Get posture offset
@@ -43,7 +53,7 @@ clear; clc; clf; close all;
             %Fill orgTrajStruct
             orgTrajStruct(trajStructInd).posture = posture;
             orgTrajStruct(trajStructInd).target = target;
-            orgTrajStruct(trajStructInd).traj = baseTraj*stretchMat*rotMat + postureOffset;
+            orgTrajStruct(trajStructInd).traj = baseTraj*stretchMat*rotMat*preRotMat + postureOffset;
             trajStructInd = trajStructInd + 1;
         end
     end
@@ -96,7 +106,7 @@ az = 121.9112; el = 23.2414;
 
 xLen = 2;
 yLen = 5;
-zLen = 5;
+zLen = 3;
 
 % Organized
 figure; hold on;
@@ -125,8 +135,8 @@ ax = gca;
 view(az,el)
 axis equal
 set(gca,'fontname','arial'); set(gca,'fontsize',fs)
-%ax.ZLim = [0.5 2.5];
-%orgXLims = ax.XLim; orgYLims = ax.YLim; orgZLims = ax.ZLim; 
+ax.ZLim = [0.5 2.5];
+orgXLims = ax.XLim; orgYLims = ax.YLim; orgZLims = ax.ZLim; 
 
 overallMean = getOverallMean(orgTrajStruct);
 orgXLims = [overallMean(xDim) - xLen/2, overallMean(xDim) + xLen/2];
@@ -147,63 +157,66 @@ if saveFig
     saveas(gcf,fullfile(saveDir,'org.svg'));
 end
 
-% Disorganized
-figure; hold on;
-xDim = 3; yDim = 2; zDim = 1;
-for posture = [1,2]
-    for target = targetList
-        traj = disTrajStruct([disTrajStruct.posture]==posture & [disTrajStruct.target]==target).traj;
-        if downsample == true
-            traj = traj(1:downsampleFactor:end,:);
-        end
-        if target == 1
-            plot3(traj(:,xDim),traj(:,yDim),traj(:,zDim),'Color',pcmap(posture,:),'LineWidth',lw)
-        elseif target == 2
-            plot3(traj(1:10:end,xDim),traj(1:10:end,yDim),traj(1:10:end,zDim),'--','Color',pcmap(posture,:),'LineWidth',lw)
-        end
-        plot3(traj(1,xDim),traj(1,yDim),traj(1,zDim),'.','MarkerEdgeColor',pcmap(posture,:),'MarkerSize',ds);
-        plot3(traj(end,xDim),traj(end,yDim),traj(end,zDim),'v','MarkerEdgeColor',pcmap(posture,:),'MarkerFaceColor',pcmap(posture,:),'MarkerSize',as);
-    end
-end
- xticklabels({}); yticklabels({}); zticklabels({});
-ax = gca;
-%xlabel('x');
-%ylabel('y');
-%zlabel('z');
-view(az,el)
-axis equal
-set(gca,'fontname','arial'); set(gca,'fontsize',fs)
-%ax.ZLim = [0.5 2.5];
-% disXLims = ax.XLim; disYLims = ax.YLim; disZLims = ax.ZLim; 
+% % Disorganized
+% xLen = 2;
+% yLen = 5;
+% zLen = 5;
+% figure; hold on;
+% xDim = 3; yDim = 2; zDim = 1;
+% for posture = [1,2]
+%     for target = targetList
+%         traj = disTrajStruct([disTrajStruct.posture]==posture & [disTrajStruct.target]==target).traj;
+%         if downsample == true
+%             traj = traj(1:downsampleFactor:end,:);
+%         end
+%         if target == 1
+%             plot3(traj(:,xDim),traj(:,yDim),traj(:,zDim),'Color',pcmap(posture,:),'LineWidth',lw)
+%         elseif target == 2
+%             plot3(traj(1:10:end,xDim),traj(1:10:end,yDim),traj(1:10:end,zDim),'--','Color',pcmap(posture,:),'LineWidth',lw)
+%         end
+%         plot3(traj(1,xDim),traj(1,yDim),traj(1,zDim),'.','MarkerEdgeColor',pcmap(posture,:),'MarkerSize',ds);
+%         plot3(traj(end,xDim),traj(end,yDim),traj(end,zDim),'v','MarkerEdgeColor',pcmap(posture,:),'MarkerFaceColor',pcmap(posture,:),'MarkerSize',as);
+%     end
+% end
+%  xticklabels({}); yticklabels({}); zticklabels({});
+% ax = gca;
+% %xlabel('x');
+% %ylabel('y');
+% %zlabel('z');
+% view(az,el)
+% axis equal
+% set(gca,'fontname','arial'); set(gca,'fontsize',fs)
+% %ax.ZLim = [0.5 2.5];
+% % disXLims = ax.XLim; disYLims = ax.YLim; disZLims = ax.ZLim; 
+% % %Setup tickLists
+% % xtickList = [disXLims(1):.5:disXLims(2)];
+% % ytickList = [disYLims(1):.5:disYLims(2)];
+% % ztickList = [disZLims(1):.5:disZLims(2)];
+% % xticks(xtickList); yticks(ytickList); zticks(ztickList);
+% 
+% 
+% overallMean = getOverallMean(disTrajStruct);
+% disXLims = [overallMean(xDim) - xLen/2, overallMean(xDim) + xLen/2];
+% disYLims = [overallMean(yDim) - yLen/2, overallMean(yDim) + yLen/2];
+% disZLims = [overallMean(zDim) - zLen/2, overallMean(zDim) + zLen/2];
+% 
+% ax.XLim = disXLims;
+% ax.YLim = disYLims;
+% ax.ZLim = disZLims;
+% 
 % %Setup tickLists
-% xtickList = [disXLims(1):.5:disXLims(2)];
-% ytickList = [disYLims(1):.5:disYLims(2)];
-% ztickList = [disZLims(1):.5:disZLims(2)];
+% xtickList = [orgXLims(1):.5:orgXLims(2)];
+% ytickList = [orgYLims(1):.5:orgYLims(2)];
+% ztickList = [orgZLims(1):.5:orgZLims(2)];
 % xticks(xtickList); yticks(ytickList); zticks(ztickList);
-
-
-overallMean = getOverallMean(disTrajStruct);
-disXLims = [overallMean(xDim) - xLen/2, overallMean(xDim) + xLen/2];
-disYLims = [overallMean(yDim) - yLen/2, overallMean(yDim) + yLen/2];
-disZLims = [overallMean(zDim) - zLen/2, overallMean(zDim) + zLen/2];
-
-ax.XLim = disXLims;
-ax.YLim = disYLims;
-ax.ZLim = disZLims;
-
-%Setup tickLists
-xtickList = [orgXLims(1):.5:orgXLims(2)];
-ytickList = [orgYLims(1):.5:orgYLims(2)];
-ztickList = [orgZLims(1):.5:orgZLims(2)];
-xticks(xtickList); yticks(ytickList); zticks(ztickList);
-
-
-
-
-grid on
-if saveFig
-    saveas(gcf,fullfile(saveDir,'disorg.svg'));
-end
+% 
+% 
+% 
+% 
+% grid on
+% if saveFig
+%     saveas(gcf,fullfile(saveDir,'disorg.svg'));
+% end
 
 
 %% Local Functions for Rotation Matrices

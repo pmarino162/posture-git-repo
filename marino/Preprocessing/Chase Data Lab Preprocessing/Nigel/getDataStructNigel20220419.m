@@ -24,6 +24,7 @@ function [Data] = getDataStructNigel20220419(rawData,varargin)
     rawSpikes = rawData.spikes;
     synch = rawData.synch;
     numTrials = size(synch.ComputerTime,1);
+    feedback = rawData.em_feedback;
 
 %% Reformat Chase Lab Spikes struct to match Batista Lab format
     spikes = struct('channel',[],'sort',[],'timestamps',[]);
@@ -99,6 +100,19 @@ function [Data] = getDataStructNigel20220419(rawData,varargin)
         end
     end
 
+%% Add each trial's cursor positions to allTrials
+    cursorTimestamps = feedback.Time;
+    cursorPositions = feedback.CursorPosition;
+    for trial = 1:numTrials
+        %Get Trial Start and End Time
+        computerStartTime = allTrials(trial).ComputerTrialTime;
+        computerFinishTime = allTrials(trial).ComputerFinishTime;
+        %For each row of spikes, add relevant times to trial data
+        cursorTimestampsMask = (cursorTimestamps >= computerStartTime) & (cursorTimestamps <= computerFinishTime);
+        allTrials(trial).cursor.timestamps = cursorTimestamps(cursorTimestampsMask);
+        allTrials(trial).cursor.positions = cursorPositions(cursorTimestampsMask,1:2);
+    end
+
 %% Sync trials and adjust times; Convert to ms
     for trial = 1:numTrials
         %Convert trial events to ms
@@ -121,6 +135,8 @@ function [Data] = getDataStructNigel20220419(rawData,varargin)
             spikes(spikesRow).timestamps = (timestamps-plexonTrialTime).*1000;
         end
         allTrials(trial).spikes = spikes;
+        %Sync cursor positions, convert to ms
+        allTrials(trial).cursor.timestamps = (allTrials(trial).cursor.timestamps - computerStartTime).*1000;
     end
 
 %% Convert Lengths to mm
@@ -131,6 +147,7 @@ function [Data] = getDataStructNigel20220419(rawData,varargin)
         for trial = 1:numTrials
             allTrials(trial).StartPos = allTrials(trial).StartPos.*1000;
             allTrials(trial).TargetPos = allTrials(trial).TargetPos.*1000;
+            allTrials(trial).cursor.positions = allTrials(trial).cursor.positions.*1000;
         end
         
 %% Preallocate Data Struct
@@ -197,7 +214,13 @@ for trial = 1:numTrials
         end
 
     %Get Decoder Data (if it's there)
-
+        %Interpolate Cursor Position up to 1000Hz 
+        time = allTrials(trial).cursor.timestamps;
+        cursorTraj = allTrials(trial).cursor.positions;
+        interpTime = ceil(time(1)):1:floor(time(end));
+        cursorTraj = interp1(time,cursorTraj,interpTime);
+        Data(trial).Decoder.timestamps = interpTime;
+        Data(trial).Decoder.cursorTraj = cursorTraj;
 end
      
 end
