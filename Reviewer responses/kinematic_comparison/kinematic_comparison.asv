@@ -1,8 +1,8 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
-    saveDir = 'C:\Users\pmari\OneDrive\Documents\Posture\Paper\Reviewer responses\Analyses\kinematic comparison';
+    saveFig = true;
+    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 6';
     set(0, 'DefaultFigureRenderer', 'painters');
     
 %% Set parameters
@@ -19,8 +19,7 @@ clear; clc; clf; close all
 %% Main loop
     resultStruct = struct('animal',[],'dataset',[],'result',[]);
     structInd = 1;
-    task = 'iso';
-    for datasetList = {'E20200116'}%{'R20200221','N20190222'}%{'N20190222','N20190226','R20200221','R20200222'}%reachDatasetList%{'E20200316'}%bciDatasetList% reachDatasetList%{'E20210707','N20190226','R20200221'}%{'E20200316','N20171215','R20201020'}%{ 'R20200221'}%bciDatasetList%{'E20210706','E20210707','E20210708','E20210709'}%reachDatasetList
+    for datasetList = bciDatasetList%{'R20201021'}%{'R20200221','N20190222'}%{'N20190222','N20190226','R20200221','R20200222'}%reachDatasetList%{'E20200316'}%bciDatasetList% reachDatasetList%{'E20210707','N20190226','R20200221'}%{'E20200316','N20171215','R20201020'}%{ 'R20200221'}%bciDatasetList%{'E20210706','E20210707','E20210708','E20210709'}%reachDatasetList
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};
@@ -29,12 +28,6 @@ clear; clc; clf; close all
         %Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParamsKinematicComparison(dataset);
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',false);  
-        
-        % For earl reaching, keep only postures 1-4
-        if ismember(dataset,{'E20210706','E20210707','E20210708'})
-            trajStruct = trajStruct(ismember([trajStruct.posture],[1,2,3,4]));
-        end
-
         %Remove any conditions for which there weren't enough trials
         [numCondTrials] = getNumCondTrials(trajStruct,'showHist',false);         
         trajStruct = trajStruct(numCondTrials >= cutoffNumTraj);    
@@ -88,14 +81,6 @@ clear; clc; clf; close all
                             else % Use trajStruct1 for across-condition comparisons
                                 cond2 = find([trajStruct1.target]==targetA & [trajStruct1.posture]==postureB);
                                 traj2 = trajStruct1(cond2).(fieldName).traj;  % Comparison trajectory
-                            end
-
-                            % For the isometric force task, only use the
-                            % first 3 columns (x,y,z) of force (not 4th
-                            % col, which is total force)
-                            if ismember(dataset,{'E20200116','E20200117','E20200120'})
-                                traj1 = traj1(:,1:3);
-                                traj2 = traj2(:,1:3);
                             end
 
                             % Get tempNumPts
@@ -198,8 +183,7 @@ clear; clc; clf; close all
         linkaxes(ax, 'x');
         
         if saveFig
-            saveas(gcf,fullfile(saveDir,['monkey_',monkey{1,1},'_',task,'.svg']));
-            saveas(gcf,fullfile(saveDir,['monkey_',monkey{1,1},'_',task,'.png']));
+            saveas(gcf,fullfile(saveDir,[task,'_goalSigVarExpl.svg']));
         end
         
         clearvars ax;

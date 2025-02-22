@@ -17,6 +17,11 @@ function [trajStruct1,trajStruct2] = splitDataforCVKinematicComparison(trajStruc
             trajStruct1(j).allMarkerPos = trajStruct(j).allMarkerPos(sampInd1);
             [trajStruct1(j).avgMarkerPos.traj,trajStruct1(j).avgMarkerPos.timestamps,trajStruct1(j).avgMarkerPos.CI95] = getAvgTraj(trajStruct1(j),'MarkerPos',binWidth); 
         end
+        if isfield(trajStruct, 'allForce')
+            trajStruct1(j).allForce = trajStruct(j).allForce(sampInd1);
+            [trajStruct1(j).avgForce.traj,trajStruct1(j).avgForce.timestamps,trajStruct1(j).avgForce.CI95] = getAvgTraj(trajStruct1(j),'Force',binWidth); 
+        end
+        
         
         numTrajRemaining = numTraj - numSample;
         sampInd2 = randsample(numTrajRemaining,numSample);
@@ -31,6 +36,10 @@ function [trajStruct1,trajStruct2] = splitDataforCVKinematicComparison(trajStruc
         if isfield(trajStruct, 'allMarkerPos')
             trajStruct2(j).allMarkerPos = trajStruct(j).allMarkerPos(sampInd2);
             [trajStruct2(j).avgMarkerPos.traj,trajStruct2(j).avgMarkerPos.timestamps,trajStruct2(j).avgMarkerPos.CI95] = getAvgTraj(trajStruct2(j),'MarkerPos',binWidth); 
+        end
+        if isfield(trajStruct, 'allForce')
+            trajStruct2(j).allForce = trajStruct(j).allForce(sampInd2);
+            [trajStruct2(j).avgForce.traj,trajStruct2(j).avgForce.timestamps,trajStruct2(j).avgForce.CI95] = getAvgTraj(trajStruct2(j),'Force',binWidth); 
         end
                 
     end   

@@ -163,7 +163,10 @@ for trial = 1:numTrials
             interpPosTime = ceil(posTime(1)):1:floor(posTime(end));
             interpVelTime = ceil(velTime(1)):1:floor(velTime(end));
             pos = interp1(posTime,pos,interpPosTime);
-            vel = interp1(velTime,vel,interpVelTime);   
+            vel = interp1(velTime,vel,interpVelTime); 
+            %Convert to mm
+            pos = pos.*1000;
+            vel = vel.*1000;
             %Store
             Data(trial).Decoder.spikes = [];
             Data(trial).Decoder.position = pos;

@@ -31,10 +31,11 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
 
             %Iso
             case {'E20200116','E20200117','E20200120'}
-                trajFields = {'zSmoothFR','force'};
+                trajFields = {'zSmoothFR','markerPos'};
                 trialInclStates(1).trialName = {'IsometricForce_1D'};   
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
-                trialInclStates(1).inclStates = {{'state','Target','first',0},{'state','Target Hold','first',0}};
+                trialInclStates(1).inclStates = {{'state','Target','first',50},{'state','Target','first',250}};
+                %trialInclStates(1).inclStates = {{'kin','moveOnsetTime','first',-250},{'kin','moveOnsetTime','first',0}};
                 task = 'iso';
                 
             %Reach
