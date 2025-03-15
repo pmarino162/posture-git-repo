@@ -11,6 +11,8 @@ function [Xfull] = getXFull(trajStruct,field,minNumTimestamps,postureList,numPos
                 numDims = size(trajStruct(1).allZSmoothFR(1).traj,2);
             case 'allPCA'
                 numDims = size(trajStruct(1).allPCA(1).traj,2);
+            case 'allSmoothFR'
+                numDims = size(trajStruct(1).allSmoothFR(1).traj,2);
         end
         
         %Get max num cond trials; preallocate X
@@ -28,6 +30,8 @@ function [Xfull] = getXFull(trajStruct,field,minNumTimestamps,postureList,numPos
                         numCondTrials = size(trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allZSmoothFR,2);
                     case 'allPCA'
                         numCondTrials = size(trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allPCA,2);
+                    case 'allSmoothFR'
+                        numCondTrials = size(trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allSmoothFR,2);
                 end
                 %For each cond trial, store traj
                 for trial = 1:numCondTrials
@@ -36,6 +40,8 @@ function [Xfull] = getXFull(trajStruct,field,minNumTimestamps,postureList,numPos
                             traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allZSmoothFR(trial).traj;
                         case 'allPCA'
                             traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allPCA(trial).traj;
+                        case 'allSmoothFR'
+                            traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).allSmoothFR(trial).traj;
                     end
                     Xfull(:,targetInd,postureInd,:,trial) = traj(1:minNumTimestamps,:);     
                 end

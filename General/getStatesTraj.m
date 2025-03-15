@@ -145,7 +145,7 @@ function [statesTraj,statesTimestamps] = getStatesTraj(trialData,trialInclStates
                 statesTimestamps = startTime + ((endTime-startTime)/2);
                 
             %For non-neural data streams, snip to appropriate time window, then downsample
-            case{'marker','markerPos','markerVel','force','forceCursor','bciCursorTraj','bciCursorPos','bciCursorVel'}
+            case{'marker','markerPos','markerVel','cursorPos','force','forceCursor','bciCursorTraj','bciCursorPos','bciCursorVel'}
                 if strcmpi(dataType,'force')
                    timestamps = trialData.force.time;
                    traj = trialData.force.force;
@@ -161,6 +161,9 @@ function [statesTraj,statesTimestamps] = getStatesTraj(trialData,trialInclStates
                 elseif strcmpi(dataType,'markerVel')
                    timestamps = trialData.marker.time;
                    traj = trialData.marker.velocity;
+                elseif strcmpi(dataType,'cursorPos')
+                    timestamps = trialData.time;
+                    traj = trialData.cursor.position;
                 elseif strcmpi(dataType,'bciCursorTraj')
                    timestamps = trialData.Decoder.timestamps;
                    traj = trialData.Decoder.cursorTraj;

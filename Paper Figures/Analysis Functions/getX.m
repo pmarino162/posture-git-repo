@@ -11,6 +11,8 @@ function [X] = getX(trajStruct,field,minNumTimestamps,postureList,numPostures,ta
                 numDims = size(trajStruct(1).avgZSmoothFR(1).traj,2);
             case 'avgPCA'
                 numDims = size(trajStruct(1).avgPCA(1).traj,2);
+            case 'avgSmoothFR'
+                numDims = size(trajStruct(1).avgSmoothFR(1).traj,2);
         end
         
         %Get X
@@ -23,7 +25,9 @@ function [X] = getX(trajStruct,field,minNumTimestamps,postureList,numPostures,ta
                     case 'avgZSmoothFR'
                         traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgZSmoothFR.traj;
                     case 'avgPCA'
-                         traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgPCA.traj;
+                        traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgPCA.traj;
+                    case 'avgSmoothFR'
+                        traj = trajStruct([trajStruct.posture]==posture & [trajStruct.target]==target).avgSmoothFR.traj;
                 end
                 X(:,targetInd,postureInd,:) = traj(1:minNumTimestamps,:); 
                 targetInd = targetInd + 1;

@@ -1,7 +1,7 @@
 clear; clc;
 
 %% Setup colormap    
-    load('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Matlab Repository\marino\Palettes\customRainbow.mat');
+    load('C:\Users\pmari\OneDrive\Documents\Matlab Repository\marino\Palettes\customRainbow.mat');
     tcmap = customRainbow;
 
 %% Load data, getTrajStruct

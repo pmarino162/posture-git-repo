@@ -46,14 +46,14 @@ function [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTraj
                 task = 'reach';
                 
             case {'R20200221','R20200222'}
-                trajFields = {'zSmoothFR','markerPos'};
+                trajFields = {'zSmoothFR','cursorPos'};
                 trialInclStates(1).trialName = {'Rocky Dissociation'};
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
                 trialInclStates(1).inclStates = {{'state','Reach','first',0},{'state','Target Hold','first',0}};
                 task = 'reach';
                         
             case {'N20190222','N20190226','N20190227','N20190228','N20190301','N20190305','N20190306','N20190307'}
-                trajFields = {'zSmoothFR','markerPos'};
+                trajFields = {'zSmoothFR','cursorPos'};
                 trialInclStates(1).trialName = {'Nigel Dissociation'};
                 condFields = {{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
                 trialInclStates(1).inclStates = {{'state','Reach','first',0},{'state','Target Hold','first',0}};

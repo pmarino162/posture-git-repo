@@ -1,12 +1,12 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
+    saveFig = true;
     saveDir = 'C:\Users\pmari\OneDrive\Documents\Posture\Paper\Reviewer responses\Analyses\kinematic comparison';
     set(0, 'DefaultFigureRenderer', 'painters');
     
 %% Set parameters
-   numIterations = 30;
+   numIterations = 1000;
    cutoffNumTraj = 10; %Num trials that must be present in a condition to keep it for analysis 
    
 %% Datasets to include in analysis 
@@ -19,13 +19,15 @@ clear; clc; clf; close all
 %% Main loop
     resultStruct = struct('animal',[],'dataset',[],'result',[]);
     structInd = 1;
-    task = 'iso';
-    for datasetList = {'E20200116'}%{'R20200221','N20190222'}%{'N20190222','N20190226','R20200221','R20200222'}%reachDatasetList%{'E20200316'}%bciDatasetList% reachDatasetList%{'E20210707','N20190226','R20200221'}%{'E20200316','N20171215','R20201020'}%{ 'R20200221'}%bciDatasetList%{'E20210706','E20210707','E20210708','E20210709'}%reachDatasetList
+    task = 'reach';
+    for datasetList = reachDatasetList%{'R20200221','N20190222'}%{'N20190222','N20190226','R20200221','R20200222'}%reachDatasetList%{'E20200316'}%bciDatasetList% reachDatasetList%{'E20210707','N20190226','R20200221'}%{'E20200316','N20171215','R20201020'}%{ 'R20200221'}%bciDatasetList%{'E20210706','E20210707','E20210708','E20210709'}%reachDatasetList
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};
         [Data,zScoreParams] = loadData(dataset);
         [Data] = removeShortBCIandIsoTrials(Data,dataset);
+        %Subtract workspace centers
+        [Data] = subtractReachWorkspaceCenters(Data,dataset);
         %Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParamsKinematicComparison(dataset);
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',false);  
@@ -184,17 +186,40 @@ clear; clc; clf; close all
     monkeyInd = 1;
     for monkey = monkeyList
         f=figure; hold on;
+        figWidth = 175;
+        figHeight = 150;
+        if strcmpi(task, 'reach')
+            figHeight = (4/5) * figHeight;
+        end
+        
+        f.Position = [200 200 figWidth figHeight];
+        fs = 5;
         acrossPostureDifference = monkeyResultStruct(strcmp([monkeyResultStruct.monkey],monkey{1,1})).acrossPostureDifference;
         postureDiffList = [acrossPostureDifference.postureDiff];
        
         for postureDiff = postureDiffList
            ax(postureDiff+1) = subplot(length(postureDiffList),1,postureDiff+1);
            difference = acrossPostureDifference([acrossPostureDifference.postureDiff]==postureDiff).difference;
+           mean_difference = mean(difference);
            histogram(difference, 'Normalization', 'probability');
-           title(['Posture difference: ',num2str(postureDiff)])
-           ylabel('Probability');
+           xline(mean_difference, 'r', 'LineWidth', 2);
+           
+           %title(['Posture difference: ',num2str(postureDiff)])
+           %ylabel('Probability');
+           if postureDiff ~= postureDiffList(end)
+               xticklabels({});
+           end
+           set(gca,'fontname','arial')
+           set(gca,'fontsize',fs)
         end
-        xlabel('Mean Euclidean distance between trajectories');
+        if strcmpi(task, 'bci')
+            %xlabel('Mean Euclidean distance between trajectories (mm)');
+        elseif strcmpi(task, 'iso')
+            %xlabel('Mean Euclidean distance between trajectories (N)');
+        elseif strcmpi(task, 'reach')
+            %xlabel('Mean Euclidean distance between trajectories (mm)');
+        end
+            
         linkaxes(ax, 'x');
         
         if saveFig
