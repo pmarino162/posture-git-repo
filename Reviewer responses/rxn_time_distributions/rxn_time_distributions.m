@@ -19,8 +19,8 @@ clear; clc; clf; close all
 %% Compute rxn times for all sessions
     resultStruct = struct('monkey',[],'dataset',[],'allRxnTimes',[]);
     structInd = 1;
-    task = "bci";
-    for datasetList = bciDatasetList
+    task = "reach";
+    for datasetList = reachDatasetList
         allRxnTimes = [];
         % Load data
         dataset = datasetList{1,1};
@@ -56,7 +56,7 @@ clear; clc; clf; close all
     end
           
 %% Combine across monkeys and save
-monkeyResultStruct = struct('monkey','','mean',[],'stdErr',[]);
+monkeyResultStruct = struct('monkey','','mean',[],'stdDev',[]);
 structInd = 1;
 
 for monkey = {'E','N','R'}
@@ -79,7 +79,7 @@ for monkey = {'E','N','R'}
     
     monkeyResultStruct(structInd).monkey = monkey;
     monkeyResultStruct(structInd).mean = avgVal;
-    monkeyResultStruct(structInd).stdErr = stdVal / sqrt(numObs);
+    monkeyResultStruct(structInd).stdDev = stdVal;
     
     structInd = structInd + 1;
 end

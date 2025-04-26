@@ -30,9 +30,9 @@ clear; clc; clf; close all;
     trajStructInd = 1;
     
     % Create a single rotation that applies to everything
-    thetaXFrac = -0.00;
-    thetaYFrac = 0.015;
-    thetaZFrac = 0.03;
+    thetaXFrac = 0.01;
+    thetaYFrac = 0.07;
+    thetaZFrac = 0.08;
     thetaX = 360*thetaXFrac;
     thetaY = 360*thetaYFrac;
     thetaZ = 360*thetaZFrac;
@@ -106,7 +106,7 @@ az = 121.9112; el = 23.2414;
 
 xLen = 2;
 yLen = 5;
-zLen = 3;
+zLen = 4;
 
 % Organized
 figure; hold on;

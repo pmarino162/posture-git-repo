@@ -42,13 +42,13 @@ clear; clc; clf; close all
         % Compute distances
         distances = struct('pDist',[],'nDist',[]);
         distancesStructInd = 1;
-        for pDist = 1:4
+        for pDist = 1:4 % dist bt postures
             nDist = [];
             for startP = 1:4
                 endP = startP + pDist;
                 if endP <= 5
-                    distance = norm(posturePoints(startP,:) - posturePoints(endP,:));
-                    nDist = [nDist, distance];
+                    distance = norm(posturePoints(startP,:) - posturePoints(endP,:)); % neural distance
+                    nDist = [nDist, distance]; 
                 end
             end
             distances(distancesStructInd).pDist = pDist;
@@ -118,12 +118,14 @@ end
 % Create the boxplot (default is median, box, whiskers)
 hBox = boxplot(allData, groupIdx, ...
     'Positions', positions, 'Widths', 4, ...
-    'Symbol','');
+    'Whisker', Inf, 'Symbol','');
 set(hBox, 'LineWidth', 2);
 
 % Make the whiskers solid
-set(findobj(gca,'Tag','Upper Whisker'),'LineStyle','-');
-set(findobj(gca,'Tag','Lower Whisker'),'LineStyle','-');
+set(findobj(gca,'Tag','Upper Whisker'),'LineStyle','-','LineWidth', 1);
+set(findobj(gca,'Tag','Lower Whisker'),'LineStyle','-','LineWidth', 1);
+set(findobj(gca,'Tag','Upper Adjacent Value'),'LineStyle','-','LineWidth',1);
+set(findobj(gca,'Tag','Lower Adjacent Value'),'LineStyle','-','LineWidth',1);
 
 
 % Plot the individual points with partial transparency

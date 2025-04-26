@@ -1,16 +1,15 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = false;
-    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 3 update';
-    %saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S5 - different joints';
+    saveFig = true;
+    saveDir = 'C:\Users\pmari\OneDrive\Documents\Posture\Paper\Reviewer responses\Analyses\Fig 3 update';
     set(0, 'DefaultFigureRenderer', 'painters');
      
 %% Set Parameters
    numPCsToKeep = 10;     %Num PCs to project data into before analysis
    numPdims = 2;
    numTdims = 2;
-   numCVReps = 100;   %Num CV redraws
+   numCVReps = 10000;   %Num CV redraws
    cutoffNumTraj = 10; %Num trials that must be present in a condition to keep it for analysis 
    alpha = 0.05; %Significance level
    
@@ -18,10 +17,20 @@ clear; clc; clf; close all
     reachDatasetList = {'E20210706','E20210707','E20210708',...
         'N20190222','N20190226','N20190227','N20190228','N20190307'...
         'R20200221','R20200222'};    
-    bciDatasetList = {'E20200316','E20200317','E20200318','E20200319','E20210901','N20171215','N20180221','R20201020','R20201021'};         
+    bciDatasetList = {'E20200316','E20200317','E20200318','E20200319','E20210901','N20171215','N20180221','R20201020','R20201021'};  
     isoDatasetList = {'E20200116','E20200117','E20200120'};
 
 %% Main loop
+for task = {'reach'}
+    if strcmpi(task,'bci')
+        tempDatasetList = bciDatasetList;
+    elseif strcmpi(task,'iso')
+        tempDatasetList = isoDatasetList;
+    elseif strcmpi(task,'reach')
+        tempDatasetList = reachDatasetList;
+    end
+    
+    
     %Setup resultStruct
     resultStruct = struct('animal',[],'dataset',[],...
         'vPPMean',[],'vPPCVDist',[],'vPRCVDist',[],...
@@ -31,7 +40,7 @@ clear; clc; clf; close all
     structInd = 1;
     
     %Run loop
-    for datasetList = bciDatasetList%{'E20210901'}%reachDatasetList%{'E20200316','N20171215','R20201020'}%bciDatasetList
+    for datasetList = tempDatasetList%{'E20210901'}%reachDatasetList%{'E20200316','N20171215','R20201020'}%bciDatasetList
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};
@@ -141,6 +150,7 @@ clear; clc; clf; close all
     
 %% Get monkey list 
     %Across datasets
+    resultMonkeyList = {};
     for i = 1:numel(resultStruct)
         resultMonkeyList{i} = resultStruct(i).animal;
     end
@@ -242,14 +252,14 @@ clear; clc; clf; close all
     %Export monkeyResultStruct
     if saveFig
         %use last dataset to determine task
-        if strcmpi(dataset,'R20201021')
-            task = 'bci';
-        elseif strcmpi(dataset,'E20200120')
-            task = 'iso';
-        elseif strcmpi(dataset,'R20200222')
-            task = 'reach';
-        end
-        save(fullfile(saveDir,[task,'_monkeyResultStruct.mat']),'monkeyResultStruct');
+%         if strcmpi(dataset,'R20201021')
+%             task = 'bci';
+%         elseif strcmpi(dataset,'E20200120')
+%             task = 'iso';
+%         elseif strcmpi(dataset,'R20200222')
+%             task = 'reach';
+%         end
+        save(fullfile(saveDir,[task{1,1},'_monkeyResultStruct.mat']),'monkeyResultStruct');
     end  
     
 %% Plot results
@@ -307,7 +317,7 @@ clear; clc; clf; close all
     %xlabel('Subspace');
 
     if saveFig
-        saveas(gcf,fullfile(saveDir,[task,'_postureSigVarExpl.svg']));
+        saveas(gcf,fullfile(saveDir,[task{1,1},'_postureSigVarExpl.svg']));
     end
     
     %Bar plot for goal signal
@@ -350,5 +360,7 @@ clear; clc; clf; close all
     %xlabel('Subspace');
         ax.YLim = [0 100];
     if saveFig
-        saveas(gcf,fullfile(saveDir,[task,'_goalSigVarExpl.svg']));
+        saveas(gcf,fullfile(saveDir,[task{1,1},'_goalSigVarExpl.svg']));
     end
+    
+end
