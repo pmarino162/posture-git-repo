@@ -1,14 +1,14 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = true;
+    saveFig = false;
     saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\Reviewer responses\Analyses\Fig 6';
     set(0, 'DefaultFigureRenderer', 'painters');
 
 %% Set parameters
    numPCsToKeep = 10;    %Num PCs to project data into before analysis
-   numIterations = 10000;
-   task = 'BCI'; %Task to analyze ('BCI', 'Iso', or 'Reach')
+   numIterations = 10;
+   task = 'Reach'; %Task to analyze ('BCI', 'Iso', or 'Reach')
    statsBinWidth = 0.2; %Difference before shift bin width for stats
 
    %% Setup colormap (based on number of postures)
@@ -219,7 +219,7 @@ clear; clc; clf; close all
         monkeyInd = monkeyInd + 1;
     end
     %Save
-    save(fullfile(saveDir,'stats','allMonkeyComparisonStruct.mat'),'allMonkeyComparisonStruct')
+    %save(fullfile(saveDir,'stats','allMonkeyComparisonStruct.mat'),'allMonkeyComparisonStruct')
     
 %% Plot results (per monkey)
 for monkey = monkeyList

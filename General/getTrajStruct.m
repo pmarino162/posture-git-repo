@@ -69,7 +69,6 @@ function [trajStruct] = getTrajStruct(Data,condFields,trajFields,trialInclStates
     %Take condition averages, store
     structInd = 1;
     for condInd = 1:numCond
-        condInd
         for trajField = 1:numTrajFields
             trajFieldName = trajFields{trajField};
             upperTrajFieldName = [upper(trajFieldName(1)),trajFieldName(2:end)];

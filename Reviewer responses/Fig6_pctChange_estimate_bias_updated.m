@@ -7,7 +7,7 @@ clear; clc; clf; close all
     
 %% Set parameters
    numPCsToKeep = 10;    %Num PCs to project data into before analysis
-   numIterations = 1000;
+   numIterations = 10000;
    cutoffNumTraj = 10; %Num trials that must be present in a condition to keep it for analysis 
    
 %% Datasets to include in analysis 

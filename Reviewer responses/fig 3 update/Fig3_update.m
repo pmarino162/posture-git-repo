@@ -21,7 +21,7 @@ clear; clc; clf; close all
     isoDatasetList = {'E20200116','E20200117','E20200120'};
 
 %% Main loop
-for task = {'reach'}
+for task = {'bciElbow'}
     if strcmpi(task,'bci')
         tempDatasetList = bciDatasetList;
     elseif strcmpi(task,'iso')
@@ -40,7 +40,7 @@ for task = {'reach'}
     structInd = 1;
     
     %Run loop
-    for datasetList = tempDatasetList%{'E20210901'}%reachDatasetList%{'E20200316','N20171215','R20201020'}%bciDatasetList
+    for datasetList = {'E20210901'}%{'E20210901'}%reachDatasetList%{'E20200316','N20171215','R20201020'}%bciDatasetList
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};

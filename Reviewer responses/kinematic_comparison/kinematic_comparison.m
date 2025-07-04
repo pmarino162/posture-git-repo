@@ -1,12 +1,12 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = true;
+    saveFig = false;
     saveDir = 'C:\Users\pmari\OneDrive\Documents\Posture\Paper\Reviewer responses\Analyses\kinematic comparison';
     set(0, 'DefaultFigureRenderer', 'painters');
     
 %% Set parameters
-   numIterations = 1000;
+   numIterations = 100; %Default - 10000
    cutoffNumTraj = 10; %Num trials that must be present in a condition to keep it for analysis 
    
 %% Datasets to include in analysis 
@@ -19,8 +19,9 @@ clear; clc; clf; close all
 %% Main loop
     resultStruct = struct('animal',[],'dataset',[],'result',[]);
     structInd = 1;
-    task = 'reach';
-    for datasetList = reachDatasetList%{'R20200221','N20190222'}%{'N20190222','N20190226','R20200221','R20200222'}%reachDatasetList%{'E20200316'}%bciDatasetList% reachDatasetList%{'E20210707','N20190226','R20200221'}%{'E20200316','N20171215','R20201020'}%{ 'R20200221'}%bciDatasetList%{'E20210706','E20210707','E20210708','E20210709'}%reachDatasetList
+    task = 'bci';
+    for datasetList = {'N20171215','R20201020'}
+        tic
         %% Set up trajStruct
         %Load data
         dataset = datasetList{1,1};
@@ -31,6 +32,11 @@ clear; clc; clf; close all
         %Get trajStruct
         [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParamsKinematicComparison(dataset);
         trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams,'getTrialAverages',false);  
+        
+        % Only use N00 and A90 for Nigel to match Rocky's postures
+        if strcmpi(dataset,'N20171215')
+            trajStruct = trajStruct([trajStruct.posture] ~= 2);
+        end
         
         % For earl reaching, keep only postures 1-4
         if ismember(dataset,{'E20210706','E20210707','E20210708'})
@@ -51,7 +57,7 @@ clear; clc; clf; close all
         fieldName = ['avg' capitalizedSecondField]; % The second field is the one we use, always making zSmoothFR the first field
 
         %% Preallocate sessionResultStruct - Compare posture A target A to posture B target B
-        sessionResultStruct = struct('postureA',[],'targetA',[],'postureB',[],'targetB',[],'difference',[]);
+        sessionResultStruct = struct('postureA',[],'targetA',[],'postureB',[],'targetB',[],'difference',[],'differenceAveraged',[]);
         sessionResultStructInd = 1;
         for postureA = postureList
             withinPostureTargetList = unique([trajStruct([trajStruct.posture]==postureA).target]);       
@@ -63,6 +69,7 @@ clear; clc; clf; close all
                         sessionResultStruct(sessionResultStructInd).postureB = postureB;
                         sessionResultStruct(sessionResultStructInd).targetB = targetA;
                         sessionResultStruct(sessionResultStructInd).difference = NaN(1,numIterations);
+                        sessionResultStruct(sessionResultStructInd).differenceAveraged = NaN;
                         sessionResultStructInd = sessionResultStructInd + 1;
                     end
                 end
@@ -117,12 +124,22 @@ clear; clc; clf; close all
                 end
             end
         end
-
+        
+        %Average across bootstraps
+        for i = 1:length(sessionResultStruct)
+            sessionResultStruct(i).differenceAveraged = mean([sessionResultStruct(i).difference]);
+        end
+        
         %Add results to resultStruct
         resultStruct(structInd).dataset = dataset;
         resultStruct(structInd).animal = dataset(1);
         resultStruct(structInd).result = sessionResultStruct;
         structInd = structInd + 1;
+        
+        % Timing
+        dataset
+        numIterations
+        toc
     end
 
 %% Collect results for each monkey
@@ -133,7 +150,7 @@ clear; clc; clf; close all
     monkeyList = unique(resultMonkeyList);
     numMonkeys = numel(monkeyList);
     
-    %Create monkey result struct (reference posture 1)
+    %Create monkey result struct 
     monkeyResultStruct = struct('monkey',[],'acrossPostureDifference',[]);
     monkeyInd = 1;
     for monkey = monkeyList
@@ -157,9 +174,9 @@ clear; clc; clf; close all
               
               % Collect trajectory differences
               if ismember(dataset,{'N20171215','N20180221'}) %Nigel BCI: all postures are '1 away'
-                  difference = [result((abs(postureB-postureA)>0)==postureDiff).difference];
+                  difference = [result((abs(postureB-postureA)>0)==postureDiff).differenceAveraged];
               else
-                  difference = [result(abs(postureB-postureA)==postureDiff).difference];
+                  difference = [result(abs(postureB-postureA)==postureDiff).differenceAveraged];
               end
               
               % Store in struct
@@ -182,6 +199,27 @@ clear; clc; clf; close all
         monkeyInd = monkeyInd + 1;
     end
       
+%% Run statistical tests
+    for monkey = monkeyList
+        acrossPostureDifference = monkeyResultStruct(strcmp([monkeyResultStruct.monkey],monkey{1,1})).acrossPostureDifference;
+        postureDiffList = [acrossPostureDifference.postureDiff];
+        postureDiffInd = 1;
+        for postureDiff = postureDiffList(1:length(postureDiffList)-1)
+            x = acrossPostureDifference([acrossPostureDifference.postureDiff]==postureDiff).difference;
+            y = acrossPostureDifference([acrossPostureDifference.postureDiff]==(postureDiff+1)).difference;
+            [h,p] = ttest2(x,y,'Tail','left');
+            monkeyResultStruct(strcmp([monkeyResultStruct.monkey],monkey{1,1})).acrossPostureDifference(postureDiffInd).h_nextPosture = h;
+            monkeyResultStruct(strcmp([monkeyResultStruct.monkey],monkey{1,1})).acrossPostureDifference(postureDiffInd).p_nextPosture = p;
+            postureDiffInd = postureDiffInd + 1;
+        end
+        
+    end
+      
+    if saveFig
+        save(fullfile(saveDir,[task,'.mat']), "monkeyResultStruct");
+    end
+        
+
 %% Plot histograms
     monkeyInd = 1;
     for monkey = monkeyList
@@ -201,7 +239,7 @@ clear; clc; clf; close all
            ax(postureDiff+1) = subplot(length(postureDiffList),1,postureDiff+1);
            difference = acrossPostureDifference([acrossPostureDifference.postureDiff]==postureDiff).difference;
            mean_difference = mean(difference);
-           histogram(difference, 'Normalization', 'probability');
+           histogram(difference, 100, 'Normalization', 'probability');
            xline(mean_difference, 'r', 'LineWidth', 2);
            
            %title(['Posture difference: ',num2str(postureDiff)])

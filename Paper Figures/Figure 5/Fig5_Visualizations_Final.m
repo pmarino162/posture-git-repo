@@ -40,12 +40,14 @@ clear; clc; clf; close all;
         end
     end
     [coeff,score,latent,tsquared,explained,mu] = pca(allObs); 
+    totalVar = trace(cov(allObs));
+    allObs_10D = []; % For computing variance explained by dims in plots (First project to 10D, then to 2D to compute variance explained)
     for i = 1:size(trajStruct,2)
         for j = 1:size(trajStruct(i).allZSmoothFR,2)
             trajStruct(i).allZSmoothFR(j).obs = (trajStruct(i).allZSmoothFR(j).obs-mu)*coeff(:,1:numPCsToKeep);
+            allObs_10D = vertcat(allObs_10D, trajStruct(i).allZSmoothFR(j).obs);
         end
     end
-    
         
  %% Create training set, doing appropriate balancing
     %Balancing scheme: for across-task posture decoding, balance by targets
@@ -164,7 +166,8 @@ clear; clc; clf; close all;
     if P1Proj(:,2) > P2Proj(:,2)
         postureLDA(:,2) = -1.*postureLDA(:,2);
     end
-  
+
+    postureLDA_VAF = 100 * diag(cov(allObs_10D * postureLDA))./totalVar;
     
 %% Do LDA by task
     obs = trainingSets(2).obs; labels = trainingSets(2).labels;
@@ -191,6 +194,7 @@ clear; clc; clf; close all;
 %         PTaskOrth(:,2) = -1.*PTaskOrth(:,2);
 %     end
 %     
+    PTaskOrth_VAF = 100 * diag(cov(allObs_10D * PTaskOrth))./totalVar;
 
 %% Get posture error ellipses and means for all tasks
     errorEllipses = struct('task',[],'posture',[],'X',[],'Y',[],'u',[]);
