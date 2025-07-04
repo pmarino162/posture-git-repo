@@ -8,7 +8,7 @@ clear; clc; clf; close all
 %% Set parameters
    numPCsToKeep = 10;    %Num PCs to project data into before analysis
    numIterations = 10;
-   task = 'Reach'; %Task to analyze ('BCI', 'Iso', or 'Reach')
+   task = 'BCI'; %Task to analyze ('BCI', 'Iso', or 'Reach')
    statsBinWidth = 0.2; %Difference before shift bin width for stats
 
    %% Setup colormap (based on number of postures)
@@ -124,7 +124,6 @@ clear; clc; clf; close all
            errorAfterShiftBias = mean(horzcat(traj1ErrorAfterShift,traj2ErrorAfterShift));
            errorBeforeShiftNoBias = errorBeforeShift - errorBeforeShiftBias;
            errorAfterShiftNoBias = errorAfterShift - errorAfterShiftBias;            
-           sessionResultStruct(sessionResultStructInd).pctChange = 100.*(errorAfterShiftNoBias - errorBeforeShiftNoBias)./(errorBeforeShiftNoBias);
         end
         %Add results to resultStruct
         resultStruct(structInd).dataset = dataset;
@@ -156,7 +155,6 @@ clear; clc; clf; close all
             result = tempResultStruct(i).result; 
             meanNormErrorBeforeShift = [result.meanNormErrorBeforeShift];
             meanNormErrorAfterShift = [result.meanNormErrorAfterShift];
-            pctChange = [result.pctChange];
             
             % Get group numbers 1 = across posture, 2 = smallest target comparison, 0 = all else
             group = zeros(1, length(result));
@@ -170,10 +168,8 @@ clear; clc; clf; close all
             % Get before and after shift errors, pct change for each group
             acrossPostureBeforeShift = meanNormErrorBeforeShift(group==1);
             acrossPostureAfterShift = meanNormErrorAfterShift(group==1);
-            acrossPosturePctChange = pctChange(group==1);
             acrossTargetBeforeShift = meanNormErrorBeforeShift(group==2);
             acrossTargetAfterShift = meanNormErrorAfterShift(group==2);    
-            acrossTargetPctChange = pctChange(group==2);
             
             %Set up bins
             maxBeforeShift = max([acrossPostureBeforeShift, acrossTargetBeforeShift]);
@@ -198,8 +194,6 @@ clear; clc; clf; close all
             allMonkeyMeanNormErrorAfterShift = [allMonkeyMeanNormErrorAfterShift, meanNormErrorAfterShift];
             allMonkeyGroup = [allMonkeyGroup, group];
             allMonkeyDiffBetweenGroups = [allMonkeyDiffBetweenGroups, diffBetweenGroups];
-            allMonkeyPctChangeAcrossPostures = [allMonkeyPctChangeAcrossPostures, acrossPosturePctChange];
-            allMonkeyPctChangeAcrossTargets = [allMonkeyPctChangeAcrossTargets, acrossTargetPctChange];
         end
 
     
@@ -214,8 +208,6 @@ clear; clc; clf; close all
         allMonkeyComparisonStruct(monkeyInd).allMonkeyDiffBetweenGroups = allMonkeyDiffBetweenGroups;
         allMonkeyComparisonStruct(monkeyInd).h = h;
         allMonkeyComparisonStruct(monkeyInd).p = p;
-        allMonkeyComparisonStruct(monkeyInd).meanPctChangeAcrossPostures = mean(allMonkeyPctChangeAcrossPostures);
-        allMonkeyComparisonStruct(monkeyInd).meanPctChangeAcrossTargets = mean(allMonkeyPctChangeAcrossTargets);
         monkeyInd = monkeyInd + 1;
     end
     %Save

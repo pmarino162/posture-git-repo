@@ -1,7 +1,7 @@
 clear; clc; clf; close all
 
 %% Setup saveFig   
-    saveFig = true;
+    saveFig = false;
     saveDir = "C:\Users\pmari\OneDrive\Documents\Posture\Paper\Reviewer responses\Analyses\Retinotopic invariance";
     set(0, 'DefaultFigureRenderer', 'painters');
 
