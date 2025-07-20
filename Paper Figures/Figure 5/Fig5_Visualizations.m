@@ -10,37 +10,49 @@ clear; clc; clf; close all;
     pctCI = 95;
     ellAlpha = 0.4;
     
-%% Load Data, getTrajStruct
+%% Load and preprocess data
+    %Load data
     dataset = 'E20200314';
     [Data,zScoreParams] = loadData(dataset);
-    %Get trajStruct - z-score single-unit FRs
-    [condFields,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
-    trajFields = {'singleBinFR'}; %Use one big bin - no smoothing or z-scoring
-    trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams); 
-    %Get trajStruct dimensions, number of trials 
-    [postureList,numPostures,targetList,numTargets,numChannels,numConditions,taskList,numTasks] = getTrajStructDimensions(trajStruct);
-    [numTrials] = getTotalNumTrials(trajStruct);
-    
-%% Reduce dimensionality of observations
-    allObs = nan(numTrials,numChannels);
-    trial = 1;
+
+    %Get trajStruct
+    [Data] = removeShortBCIandIsoTrials(Data,dataset);
+    [~,trajFields,trialInclStates,binWidth,kernelStdDev] = getTrajStructParams(dataset);
+    condFields = {{'task','conditionData','taskID'},{'target','targetData','targetID'},{'posture','conditionData','postureID'}};
+    trajStruct = getTrajStruct(Data,condFields,trajFields,trialInclStates,binWidth,kernelStdDev,'zScoreParams',zScoreParams);  
+    [minNumTimestamps] = getMinNumTimestamps(trajStruct); 
+    [postureList,numPostures,targetList,numTargets,numChannels,numConditions] = getTrajStructDimensions(trajStruct); 
+    taskList = 1:3;
+    % Setup colormap (based on number of postures)
+    [pcmap,tcmap,rainbow] = getColorMaps(numPostures);
+    %For each timecourse, get one point
+     for i = 1:size(trajStruct,2)
+        for j = 1:size(trajStruct(i).allZSmoothFR,2)
+           trajStruct(i).allZSmoothFR(j).obs = mean(trajStruct(i).allZSmoothFR(j).traj); 
+        end
+     end
+    %Reduce dimensionality of observations
+    allObs = [];
     for i = 1:size(trajStruct,2)
-        for j = 1:size(trajStruct(i).allSingleBinFR,2)
-            allObs(trial,:) = trajStruct(i).allSingleBinFR(j).traj;
-            trial = trial + 1;
+        for j = 1:size(trajStruct(i).allZSmoothFR,2)
+            obs = trajStruct(i).allZSmoothFR(j).obs;
+            allObs = vertcat(allObs,obs);
         end
     end
-    %Mean-centering handled by 'pca' function 
     [coeff,score,latent,tsquared,explained,mu] = pca(allObs); 
+    totalVar = trace(cov(allObs));
+    allObs_10D = []; % For computing variance explained by dims in plots (First project to 10D, then to 2D to compute variance explained)
     for i = 1:size(trajStruct,2)
-        for j = 1:size(trajStruct(i).allSingleBinFR,2)
-            trajStruct(i).allSingleBinFR(j).traj = (trajStruct(i).allSingleBinFR(j).traj-mu)*coeff(:,1:numPCsToKeep);
+        for j = 1:size(trajStruct(i).allZSmoothFR,2)
+            trajStruct(i).allZSmoothFR(j).obs = (trajStruct(i).allZSmoothFR(j).obs-mu)*coeff(:,1:numPCsToKeep);
+            allObs_10D = vertcat(allObs_10D, trajStruct(i).allZSmoothFR(j).obs);
         end
     end
         
  %% Create training set, doing appropriate balancing
     %Balancing scheme: for across-task posture decoding, balance by targets
-    %w/in each posture, and get same number of points from each task. (this scheme doesn't balance perfectly, but it also keeps more data) For task-decoding, balance by target and posture
+    %w/in each posture x task, and get same number of points from each task. (this scheme doesn't balance perfectly, but it also keeps more data) 
+    %For task-decoding, balance by target and posture
     %w/in each task
  
     %Get minimum number of trials to any target direction within each
@@ -53,7 +65,7 @@ clear; clc; clf; close all;
             tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
             tempMinNumCondObs = 999999999;
             for i = 1:size(tempTrajStruct,2)
-                numCondObs = size(vertcat(tempTrajStruct(i).allSmoothFR.obs),1);
+                numCondObs = size(vertcat(tempTrajStruct(i).allZSmoothFR.obs),1);
                 if numCondObs < tempMinNumCondObs
                     tempMinNumCondObs = numCondObs;
                 end
@@ -75,7 +87,7 @@ clear; clc; clf; close all;
                 tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
                 numObsToUsePerTarget = minNumObsStruct([minNumObsStruct.task]==task & [minNumObsStruct.posture]==posture).minNumObs;
                 for i = 1:size(tempTrajStruct,2)
-                    condObs = vertcat(tempTrajStruct(i).allSmoothFR.obs);
+                    condObs = vertcat(tempTrajStruct(i).allZSmoothFR.obs);
                     obs = vertcat(obs,datasample(condObs,numObsToUsePerTarget,'Replace',false));
                     posture = tempTrajStruct(i).posture;
                     labels = vertcat(labels,ones(numObsToUsePerTarget,1)*posture);
@@ -122,7 +134,7 @@ clear; clc; clf; close all;
                 for posture = 1:3
                     tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
                     for i = 1:size(tempTrajStruct,2) %Loop over targets
-                        condObs = vertcat(tempTrajStruct(i).allSmoothFR.obs);
+                        condObs = vertcat(tempTrajStruct(i).allZSmoothFR.obs);
                         tempObs = datasample(condObs,minNumObs,'Replace',false);
                         tempLabels = task*ones(minNumObs,1);
                         obs = vertcat(obs,tempObs);
@@ -154,7 +166,8 @@ clear; clc; clf; close all;
     if P1Proj(:,2) > P2Proj(:,2)
         postureLDA(:,2) = -1.*postureLDA(:,2);
     end
-  
+
+    postureLDA_VAF = 100 * diag(cov(allObs_10D * postureLDA))./totalVar;
     
 %% Do LDA by task
     obs = trainingSets(2).obs; labels = trainingSets(2).labels;
@@ -164,18 +177,9 @@ clear; clc; clf; close all;
     LDAProj = LDAProj(:,1:numClasses-1);
     taskLDA = LDAProj;
     
-    
     %Choose task dim within 2d task space
-    taskDim = taskLDA(:,1)-taskLDA(:,2);
+    taskDim = taskLDA(:,1)-0.5.*taskLDA(:,2);
     taskDim = taskDim./vecnorm(taskDim);
-    
-    T2pt = mean(obs(labels==2,:))*taskLDA;
-    T3pt = mean(obs(labels==3,:))*taskLDA;
-    T23ax = (T3pt-T2pt);
-    T23ax = T23ax*taskLDA';
-    T23ax = T23ax./vecnorm(T23ax);
-    taskDim = T23ax';
-    
     
     [PTaskOrth,~] = qr([postureLDA,taskDim]); PTaskOrth = PTaskOrth(:,1:3);
     %Make sure posture dims match postrureLDA directions
@@ -190,6 +194,7 @@ clear; clc; clf; close all;
 %         PTaskOrth(:,2) = -1.*PTaskOrth(:,2);
 %     end
 %     
+    PTaskOrth_VAF = 100 * diag(cov(allObs_10D * PTaskOrth))./totalVar;
 
 %% Get posture error ellipses and means for all tasks
     errorEllipses = struct('task',[],'posture',[],'X',[],'Y',[],'u',[]);
@@ -199,7 +204,7 @@ clear; clc; clf; close all;
             allTrialAvg = [];
             tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
             for i = 1:size(tempTrajStruct,2)
-                allTrialAvg = vertcat(allTrialAvg,tempTrajStruct(i).allSmoothFR.obs);
+                allTrialAvg = vertcat(allTrialAvg,tempTrajStruct(i).allZSmoothFR.obs);
             end
             ldaProj = allTrialAvg*postureLDA;
             [X,Y,Z] = error_ellipse_Patrick(ldaProj,pctCI);
@@ -220,7 +225,7 @@ clear; clc; clf; close all;
             allTrialAvg = [];
             tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
             for i = 1:size(tempTrajStruct,2)
-                allTrialAvg = vertcat(allTrialAvg,tempTrajStruct(i).allSmoothFR.obs);
+                allTrialAvg = vertcat(allTrialAvg,tempTrajStruct(i).allZSmoothFR.obs);
             end
             ldaProj = allTrialAvg*taskLDA;
             [X,Y,Z] = error_ellipse_Patrick(ldaProj,pctCI);
@@ -242,7 +247,7 @@ clear; clc; clf; close all;
             allTrialAvg = [];
             tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
             for i = 1:size(tempTrajStruct,2)
-                allTrialAvg = vertcat(allTrialAvg,tempTrajStruct(i).allSmoothFR.obs);
+                allTrialAvg = vertcat(allTrialAvg,tempTrajStruct(i).allZSmoothFR.obs);
             end
             ldaProj = allTrialAvg*PTaskOrth;
             [X,Y,Z] = error_ellipse_Patrick(ldaProj,pctCI);
@@ -295,7 +300,7 @@ fs = 14;
             allTrialAvg = [];
             tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
             for i = 1:size(tempTrajStruct,2)
-                allTrialAvg = vertcat(allTrialAvg,tempTrajStruct(i).allSmoothFR.obs);
+                allTrialAvg = vertcat(allTrialAvg,tempTrajStruct(i).allZSmoothFR.obs);
             end
             ldaProj = allTrialAvg*postureLDA;
             if task ==1 
@@ -365,9 +370,9 @@ fs = 14;
                    end
                end
                h = surf(X,Y,Z,colorMat);
-               set(h, 'FaceAlpha', ellAlpha)
+               %set(h, 'FaceAlpha', ellAlpha)
                shading faceted
-               plot3(u(:,1),u(:,2),u(:,3),'.','MarkerSize',20,'Color',pcmap(posture,:));
+               %plot3(u(:,1),u(:,2),u(:,3),'.','MarkerSize',20,'Color',pcmap(posture,:));
             
         end       
     end
@@ -381,7 +386,7 @@ fs = 14;
         xticklabels({}); yticklabels({}); zticklabels({});
         set(gca,'fontname','arial')
         set(gca,'fontsize',fs)
-
+        ax.ZLim(1) = -7.5
         view([-40 10])
         if saveFig
            saveas(gcf,fullfile(saveDir,[dataset,'_taskXposture3d.svg']));
