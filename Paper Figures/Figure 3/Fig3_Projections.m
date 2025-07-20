@@ -2,8 +2,7 @@ clear; clc; clf; close all
 
 %% Setup saveFig   
     saveFig = false;
-    %saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 3';
-    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S5 - different joints';
+    saveDir = 'C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure 3';
     set(0, 'DefaultFigureRenderer', 'painters');
     
 %% Set Parameters
@@ -14,7 +13,7 @@ clear; clc; clf; close all
 
 %% Run loop for each dataset      
     %Load data
-    dataset = 'E20200318';%'E20210901';%'E20200318';
+    dataset = 'E20200318';
     [Data,zScoreParams] = loadData(dataset);
     [Data] = removeShortBCIandIsoTrials(Data,dataset);
     %Get trajStruct

@@ -22,7 +22,7 @@ clear; clc; clf; close all
     [pcmap,tcmap,rainbow] = getColorMaps(numPostures);  
 
 %% Load anova table for dataset
-    anovaResultStruct = load(fullfile('C:\Users\pmari\OneDrive - University of Pittsburgh\Documents\Posture\Paper\20231002\Figure S1 - single units',dataset,'anovaResult.mat'));
+    anovaResultStruct = load(fullfile('C:\Users\pmari\OneDrive\Documents\Posture\Paper\20231002\Figure S1 - single units',dataset,'anovaResult.mat'));
     anovaResultStruct = anovaResultStruct.resultStruct;
     
 %% Plot all PSTHs
