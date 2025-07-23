@@ -16,15 +16,13 @@ function [LDAModel,numClasses] = LDATrainModel(observations,labels)
     
     %Estimate class covariances
     estCov = zeros(numDims);
-%         %Average across classes
-%         for class = uniqueLabels
-%            classData = observations(labels==class,:);
-%            classCov = cov(classData);
-%            estCov = estCov + classCov;
-%         end
-%         estCov = estCov./numClasses;
-        %Treat all data together
-        estCov = cov(observations);
+    %Average across classes
+    for class = uniqueLabels
+       classData = observations(labels==class,:);
+       classCov = cov(classData);
+       estCov = estCov + classCov;
+    end
+    estCov = estCov./numClasses;
     
     %Get class priors (assume uniform distribution), means, and estimated
     %covariances

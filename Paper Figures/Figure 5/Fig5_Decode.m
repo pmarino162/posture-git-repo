@@ -55,7 +55,7 @@ clear; clc; clf; close all;
     for task = 1:3
         for posture = 1:3
             tempTrajStruct = trajStruct([trajStruct.task]==task & [trajStruct.posture]==posture);
-            tempMinNumCondObs = 999999999;
+            tempMinNumCondObs = inf;
             for i = 1:size(tempTrajStruct,2)
                 numCondObs = size(vertcat(tempTrajStruct(i).allZSmoothFR.obs),1);
                 if numCondObs < tempMinNumCondObs
