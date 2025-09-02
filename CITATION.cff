@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the following metadata."
+title: "posture-git-repo"
+version: "1.0.1"
+date-released: "2025-07-24"
+authors:
+  - family-names: "Marino"
+    given-names: "Patrick M."
+    # orcid: "https://orcid.org/0000-0001-6819-0830" 
+repository-code: "https://github.com/pmarino162/posture-git-repo"
