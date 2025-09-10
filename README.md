@@ -12,5 +12,5 @@ For proper attribution, please cite the above reference and this [codepack](http
 
 # Contact
 
-For questions, please contact Patrick Marino at pmarino162@gmail.com..
+For questions, please contact Patrick Marino at pmarino162@gmail.com.
 
